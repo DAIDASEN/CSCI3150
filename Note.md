@@ -116,7 +116,7 @@ Linux: re-parent to <font color="red"><u>init</u></font> => <font color="black">
 **<font color="blue">Type 2.</font>** Generated directly from **kernel**. -E.g., from `exit()` -> SIGCHLD
 **<font color="blue">Type 3.</font>** Generated from one **process** to another. - E.g., `kill 1234` from another process 885
 **<font color="red">kill() function:</font>** `int kill(pid_t pid, int sig);` e.g., `kill(getpid(), SIGTERM);`
-**<font color="red">signal() function:</font>** <font color="red">修改信号的Defalut Handler(默认处理行为）</font>![image-20250504014216358](C:\Users\31670\Desktop\CSCI3150\Images\image-20250504014216358.png)当我们收到信号后会继续，除非是 `sleep()`, `pause()`
+**<font color="red">signal() function:</font>** <font color="red">修改信号的Defalut Handler(默认处理行为）</font>![image-20250504014216358](.\Images\image-20250504014216358.png)当我们收到信号后会继续，除非是 `sleep()`, `pause()`
 Signal 的状态是由数组表示的，如 SIGINT 对应的 bit (or mask)
 receive SIGINT 第 1 位变 1, handle 后变回 0
 **<font color="blue">Pause():</font>** 暂停直到收到信号 (Suspend until a signal is received)
@@ -130,7 +130,7 @@ receive SIGINT 第 1 位变 1, handle 后变回 0
 ==**Memory Management**== $$KB (2^{10}) MB (2^{20}) GB (2^{30}) TB (2^{40}) PB (2^{50}) EB (2^{60})$$
 32-bit system maximum amount memory in a process is $$2^{32}$$ bytes
 
-![image-20250502011356544](C:\Users\31670\Desktop\CSCI3150\Images\image-20250502011356544.png)
+![image-20250502011356544](.\Images\image-20250502011356544.png)
 <font color=red>Stack in-depth</font>
 **When a function is called** - push a <font color=blue>Stack frame</font> (从stack底到顶, Parameters-return address, local vars)
 **When a function returns** - Pop the <font color=blue>Pop the stack frame</font>. Set Stackptr = *frameptr; *frameptr stores the previous stack ptr.
@@ -143,7 +143,7 @@ Segmentation fault
 
 ==**Threading**==
 For <font color=green>Multi-threading</font>, they share the same code, same address space(share global vars),  same heap(malloc), different registers and stack(local vars)
-<font color=purple>Multi-thread examples</font>: Old Firefox - Single-process & each tab is a thread, Faster but crash one will crash all. Chrome - 1 tab 1 process![image-20250502221644955](C:\Users\31670\Desktop\CSCI3150\Images\image-20250502221644955.png)
+<font color=purple>Multi-thread examples</font>: Old Firefox - Single-process & each tab is a thread, Faster but crash one will crash all. Chrome - 1 tab 1 process![image-20250502221644955](.\Images\image-20250502221644955.png)
 `pthread_create(&tid, NULL, func_name, func_parameters)` `pthread_join(tid, (void**) &t-output)`  第二个可以是NULL, 这个写法是手从`pthread_exit()`返回的值，t-output定义时定义的时指针，输出值用*t-output
 **Kernel** is a multi-thread program, it create kernel threads & OS threads 
 
@@ -152,7 +152,7 @@ For <font color=green>Multi-threading</font>, they share the same code, same add
 **I/O - bound process**: user-time < sys-time
 <font color=red>**Classes of scheduling**</font>
 <font color=red>**1. ** **Preemptive scheduling**(抢占式调度, 也叫time-sharing) </font>
-![image-20250502231144130](C:\Users\31670\Desktop\CSCI3150\Images\image-20250502231144130.png)
+![image-20250502231144130](.\Images\image-20250502231144130.png)
 
 Evaluation: 1.Number of Context Switches 2. Turnaround Time (`Termination Time` - `Arrival Time`) 3. Waiting Time
 <font color = blue>**Algorithms** </font>
@@ -163,7 +163,7 @@ Evaluation: 1.Number of Context Switches 2. Turnaround Time (`Termination Time` 
 Priority分为两种**static priority**和**dynamic priority**, static的就是fixed的, dynamic在每个新任务到来时会变化
 <font color=green>Multi-Level Queue Scheduling</font>: Each queue can use a different algorithm. Priorities can be adjusted dynamically.
 <font color=red>Thread Scheduling</font>: Linux >= 2.6之后我们就只关心threads, the scheduler determines which threads get CPU time.
-![image-20250503010332558](C:\Users\31670\Desktop\CSCI3150\Images\image-20250503010332558.png)
+![image-20250503010332558](.\Images\image-20250503010332558.png)
 
 **==File Management==**
 <font color=green>**Virtual File System(VFS)**</font>: An abstraction layer on top of concrete file systems
@@ -173,7 +173,7 @@ Priority分为两种**static priority**和**dynamic priority**, static的就是f
 **File**包含一个Buffered I/O,  读到哪的指针，1个int(file descriptor, `fd`)来描述.
 **Buffered I/O**
 Why need?  Reduces the number of system calls
-![image-20250503013857832](C:\Users\31670\Desktop\CSCI3150\Images\image-20250503013857832.png)
+![image-20250503013857832](.\Images\image-20250503013857832.png)
 **Change the buffer**
 `int setvbuf( FILE *stream, char *buf, int mode, size_t size );`
 buf存的是缓冲区地址, size是大小, 如果buf为NULL意味着不用缓冲区(buffer)
@@ -181,10 +181,10 @@ buf存的是缓冲区地址, size是大小, 如果buf为NULL意味着不用缓�
 **`EOF`**: What is? 不存在于system call, 是定义在stdio.h中的,fread()会记住是否到达末尾, 到达了就返回-1(EOF), 如果没到reads data from the buffer or system calls.
 <font color=red>Linux: Everything is file</font> e.g. : Regular File, Directory, Block special file, Character special file(mouse)
 <font color=green>A "File"</font> contains **attributes** and **data**
-![image-20250503020301702](C:\Users\31670\Desktop\CSCI3150\Images\image-20250503020301702.png)
+![image-20250503020301702](.\Images\image-20250503020301702.png)
 <font color=red>stat</font>指令能看attributes, 对应的system call有`stat()`, `fstat()`, `lstat()`
 <font color=green>A directory</font> is a file consisting of **directory entries**(`dirent`), `dirent`is a struct
-![image-20250503021449046](C:\Users\31670\Desktop\CSCI3150\Images\image-20250503021449046.png)
+![image-20250503021449046](.\Images\image-20250503021449046.png)
 `read()`的流程:
 S1: 看是否 the end of the file is reached or not.  Comparing size and file seek.
 S2: Reading data
@@ -201,7 +201,7 @@ S4: The buffered data will be flushed to the disk from time to time.
 **3. **Why to "eject" USB drives: Ejecting ensures all cached data is written to the device, preventing data loss or corruption.
 
 ==**Disk and booting**==
-![image-20250503162447287](C:\Users\31670\Desktop\CSCI3150\Images\image-20250503162447287.png)
+![image-20250503162447287](.\Images\image-20250503162447287.png)
 <font color=red>Why do we need to have partitions?</font>
 **1. **Multi-booting, 一个hard disk上可以有多个启动程序(windows, maxOS)
 **2. **Data management. 可以分很多个logic drive, 每个存不同的东西(C, D, E盘)
@@ -221,7 +221,7 @@ Legacy boot流程: 1. BIOS(store in EPROM) locates the first bootable device (SS
 **Partition table**: 里面每个项16个字节, 分为Bootable flag(1, 是否bootable`0x80`), 起始CHS(3), Partition type(1, ext4\FAT), 结束CHS(3), 起始LBA(4), Sizes in sectors(4) 这决定了每个分区最大2T
 Partition分为Primary和extended, extended只有一个, extended可以划分成很多个logical partition
 <font color=blue>**GUID Partition Table (GPT)** </font>
-![image-20250503220928413](C:\Users\31670\Desktop\CSCI3150\Images\image-20250503220928413.png)
+![image-20250503220928413](.\Images\image-20250503220928413.png)
 **属性标志**= **Attribute Flags** :描述分区特性的标志位，如是否可启动、是否为隐藏分区等。**分区名称** = **Partition Name**, 分区的人类可读名称，通常使用Unicode字符存储。**分区类型GUID**= **Partition Type GUID**(Fat/Ext4)
 
 # Mounting 没看
@@ -239,7 +239,7 @@ For each block, leave 4 bytes as the “pointer”, 最后一个写-1(NULL), Roo
 在kernel cache中。
 Start from floppy disk and DOS, Dos中每个block被称为cluster, FAT xx表示xx-bit cluster address也就是说总共$2^{xx}$个blocks, FAT32只有28, MS reserves 4bits
 File System Size计算方法: Cluster Size$\times$Cluster address
-![image-20250504000704971](C:\Users\31670\Desktop\CSCI3150\Images\image-20250504000704971.png)Root Directory从Cluster #2开始做directory traversal
+![image-20250504000704971](.\Images\image-20250504000704971.png)Root Directory从Cluster #2开始做directory traversal
 <font color=green>Directory Entry</font>: 每个占32 bytes, 用来描述当前directory下包含哪些文件和sub-directory. **字节0**, 文件名的第一个字符(0x00或0xE5表示未分配), 1-10表示文件剩余的部分+扩展名(8+3, 8个字符文件名+3字符扩展名). **字节 11**：文件属性(只读\隐藏) **字节12**: 保留字节 **字节13-19**: Creation and access time information. **字节20-21**: High 2 bytes of the first cluster number (0 for FAT16 and FAT12).**22-25** Written time information. **26-27** Low 2 bytes of first cluster number. **28-31** File size(最大4G-1 Bytes, 主要用来决定最后一个Block读多少)
 <font color=red>找文件流程</font>: 在directory里面找First Cluster, 然后从FAT里一直读, 知道读到最后一个. <font color=red>如果要写</font>, 读取FSINFO, 这里面存了下一个空闲的Cluster的位置, 写完更新FSINFO. 如果要<font color=red>如果要删</font>, 更新FSINFO和FATS(改为0), 把directory entry的1st bytes 改为0x00
 <font color=red>取消删除算法</font>: Scan directory structure for entries with first byte 0xE5, restore original filename, extract file size (bytes 28-31) and first cluster number (bytes 20-21 and 26-27). For small files (single cluster), directly read data from first cluster; for large files (multiple clusters), rebuild cluster chain. When rebuilding, check FAT table status of first cluster; if cleared, assume contiguous allocation and read consecutive clusters until reaching file size or verify data validity using file signatures/magic numbers analysis.
@@ -257,10 +257,10 @@ For Ext2 & Ext3:  Block size: 1,024, 2,048, or 4,096 bytes. Block address size: 
 | Inode Table                  | An array of inodes ordered by the inode #.                   |
 | Data Blocks                  | An array of blocks that stored files.                        |
 
-![image-20250504011335293](C:\Users\31670\Desktop\CSCI3150\Images\image-20250504011335293.png)
+![image-20250504011335293](.\Images\image-20250504011335293.png)
 <font color=red>Why having groups?</font>
 (1) Performance: spatial locality. Group inodes and data blocks of related files together (2) Reliability: superblock and GDT are replicated in some block groups
-![image-20250504012101034](C:\Users\31670\Desktop\CSCI3150\Images\image-20250504012101034.png)<font color=green>directory entry in directory block</font> **0-3** Inode number of that file/directory **4-5** Length of this entry **6-6** Length of the filename **7-7** File Type 8+ Name in ASCII (max 255 character)
+![image-20250504012101034](.\Images\image-20250504012101034.png)<font color=green>directory entry in directory block</font> **0-3** Inode number of that file/directory **4-5** Length of this entry **6-6** Length of the filename **7-7** File Type 8+ Name in ASCII (max 255 character)
 <font color=red>File Deletion</font> Ext2直接把这个entry并入上一个entry的length Ext 3/4: the inode’s data block pointers are zeroed out
 <font color=purple>Hard and Soft Links</font>: 
 <font color=green>what is a hard link</font> A hard link is a directory entry pointing to the inode of an existing file.That file can accessed through two different pathnames可以理解为复制的时候其实是在新的写一个链接到那个Inode,这样实际上相当于没拷贝, 但我能读取. 我们对于每个Inode现在需要一个link count, 删除时(unlink())-1, =0时deallocated这个block
@@ -283,7 +283,7 @@ If power-down between Steps 2 & 3 ➔ Leak Storage(删除了空间浪费)
 • Interrupt – CPU waits for interrupt and does something else in between CPU效率更高，不需要等待
 • **Direct Memory Access (DMA)** – DMA controller on **system bus** – Offloading the per-byte polling/interrupt job from CPU to DMA controller 进一步减轻CPU负担，提高系统整体效率
 <font color=green>DMA</font>: 
-![image-20250504031018225](C:\Users\31670\Desktop\CSCI3150\Images\image-20250504031018225.png)
+![image-20250504031018225](.\Images\image-20250504031018225.png)
 <font color=green>Print Spooling</font>: 打印机显然不应该并发, 并且还要解决一个user process open printer but don't use $\Rarr$ Create a root level printer daemon process, and a spooling directory(临时储存区) 流程: 文件放到spooling directory, printer daemon从目录中获取文件发送到打印机 优势: 1. documents formatted for printing are stored in a queue at the speed of the computer, then retrieved and printed at the speed of the printer. 2. Multiple processes can write documents to the spool without waiting, and can then perform other tasks, while the "spooler" process operates the printer
 <font color=green>**Memory-mapped I/O**</font>
 通过设置mmap(内存映射)将文件链接到进程的地址空间 Write to an address = write to a file **Advantages**: 1. Reduced data copying 2. Simplified programming model 3. Leverages page cache 4. Supports random access 5. Potential performance improvement
