@@ -1,0 +1,312 @@
+<font color=green>==**OS Includes:**==</font>
+<font color=green>**a program $\Rarr$ “kernel”**</font>
+**1.** Manage all physical devices such as CPU, RAM, hard disk etc. 
+**2.** It exposes some functions as **system calls** for configuring the kernel or building things on-top.
+**<font color=green>Some more programs</font>**
+  **1. drivers:** handle the interaction between kernel and external devices.
+  **2. shell: **renders a simple command-line user interface with a full set of commands.
+**<font color=green>Some optional programs</font>**: GUI, Browser, Paintbrush
+==**Process**== is an execution instance of a program. It's not just a program: It also has states concerning the execution. e.g., which line of code is running; how much time is left before giving the CPU to another process.
+<font color=green>**Process-Related Tools:** </font>`ps` & `top`: `ps` reports information about every process in the system.
+**==Shell==** e.g., `bash` in Linux
+**Steps to execute a command:** 1. Get input ( `getchar()`) 2. Syntax checking 3. `fork()` to create a new process 4. `exec()` to execute the program
+**Process Hierarchy:** Forms a tree hierarchy. 
+==**System Call **==1. Is a function call. 2. Exposed by the kernel. 3. Abstracts away most low-level details.
+**Categorizing System Calls:** 1. Process Management 2. File System Management 3. Memory Management 4. Security 5. Device Management 6. Information Maintenance
+**Note:** Functions like `printf` from the C library are **not** system calls.
+**Examples of system calls:** `mkdir`, `rmdir`, `chown`, `chmod`, `open`, `close`, `brk`, `mmap`.
+**Execution Context:** System calls execute in **kernel space**, while library functions (like those in the C library) execute in **user space**.
+==**Modern Computer Architecture**==
+<font color=green>**File system**</font>
+**Advantages:** sequential access is simple
+**Disadvantages:** fragmentation, space management
+Leads to: non-sequential access
+<font color=green>**Program Counter:** </font>A register that contains the memory address of the next instruction.
+<font color=green>**Instruction Cycle:**</font>
+**Fetch (IF):** Fetch the next instruction from memory.
+**Decode (ID):** Prepare registers in readiness for the next step.
+**Execute (EX):** Perform the computation or compute the memory address.
+**Memory Access (MEM):** Read from or write to memory.
+**Write Back (WB):** Write results back to the register.
+<font color=Green>**CPU speed = CPU clock rate** </font>e.g.1.8GHz = 1.8 x 10⁹ clock cycles per second.
+<font color=green>**Pipeline:**</font>     | Fetch | Decode | Execute | Write Back |
+Sequential execution: One instruction finishes before the next one starts.
+**Scalar Pipeline:** 上一轮fetch后decode时fetch下一个Cycle
+**Superscalar Pipeline:** Builds upon the Scalar pipeline by adding instruction-level parallelism. => Multiple instruction cycles run in parallel.
+
+# 一列最下没对
+
+==**Process (User space)**==
+Process is a program in execution (Contains all accounting information)
+It will stop early if sent a *Signal* to interrupt it. Multiple processes can work together to do more complicated tasks.
+<font color=green>**Process identification:** </font> Processes have a unique ID number  ***PID*** .
+Can be obtained using `getpid()` -> `(int) getpid()`
+`getppid()` gets the parent process *PID* .
+<font color=green>*Process creation:* </font>`fork()`(fail返回-1) 执行顺序由<font color=blue>Scheduler</font>决定. 
+**1.** `fork` clones all user-space data and some kernel-space attributes. e.g., Program Counter, Program code, Memory, Opened files.
+**2. ** `fork`后, 父进程 accumulated run time ; 子进程从0开始run time
+**3. ** File locks 父进程不变，子进程 None
+<font color="green">Program execution:</font> exec\*()
+<font color=blue>execl( PATH, char arg0, ..., NULL) </font> e.g., execl("/bin/ls", "ls", NULL)
+可多次调 用 exe 让一个 process 执行多个 program
+**1. **It will **replace** user-space info: Program Code, Memory, Register values.
+**2. ** kernel info is **preserved**: PID, process relationships.*
+<font color="green">fork() + exec*() + wait() = system()</font>
+<font color=blue>Environment variables: </font> main() 函数最后会有一个**envp是字符串数组存环境变量
+
+| 变量名     | 描述                                                     | 变量名      | 描述                                  |
+| ---------- | -------------------------------------------------------- | ----------- | ------------------------------------- |
+| **SHELL**  | The path to the shell that you’re using.                 | **HOME**    | The full path to your home directory. |
+| **PWD**    | The full path to the directory that you’re currently on. | **USER**    | login name.                           |
+| **EDITOR** | Default text editor                                      | **PRINTER** | Default printer                       |
+
+类似python字典 getenv("HOME");能得到返回值
+<font color="blue">wait()</font>: Process using wait will be suspended until: 1. one of <font color="red"><u>child process</u></font> running terminated or 2. Signal received   
+立即**Return**如果无子进程或之前有终止的子进程(此时返回的是-1)
+<font color="blue">waitpid(pid_t pid, int *status, int options)</font>
+`pid`: `(+)`: 特定的子进程 `0`: Wait for any child in the same process group (调用同组) `-1`: 等待任意, 相当于wait()
+
+==**Process (Kernel Space)**==
+<font color=blue>运行中的`fork()`: </font>
+ (<font color="green">Kernel</font>) **Update:** PID, Runtime = 0, Pointer to parent **Preserved:** <font color="black">arrays of opened FILES</font>(0 stdin, 1 stdout, 2 stderr, 后面是打开的文件)
+(<font color="green">User</font>) **Copy**: Local variable, Global variable, Dynamically-allocated memory, Code + Constants
+<font color=blue>运行中的`exec*()`: </font>
+(<font color="green">Kernel</font>): reset the register values
+(<font color="green">User</font>): **Cleared** Local variable, Dynamically allocated memory, **Reset** Global variable, Code + Constants
+**`exit()`:**
+**1. **kernel free all the allocated memory & all on the user-space memory
+**<font color="darkred">However</font>:** <font color="red">PID still in kernel</font> => <font color="red">Zombie process</font> (<font color="purple"><defunct></font> 可查 )<font color="green">Why need Zombie?</font> allow to read exit status
+**2. **kernel sends <font color="blue">SIGCHLD</font> to parents. => help parents to deal with Zombie process. <font color="blue">(用 wait 会在 SIGCHLD 后彻底清除子进程 )</font>
+**`exit()` system call turns a process into a zombie when...**
+**1. **The process calls `exit()`
+**2. **The process returns from `main()`
+**3. **The process terminates abnormally
+**<font color="red">Why important to know above?</font>**
+**1. **process execution/suspension 
+**2. **System resource management  Zombie占PID, and PID 共 32,768
+**<font color="blue">First process</font> => init: PID=1 task => create more processes**
+`init()` (<font color="purple">fork() & exec()</font>) -> SSH Server <font color="purple">(f&e)</font> -> shell <font color="purple">(f&e)</font> -> `top`
+**<font color="red">Orphan process:</font>** if parent terminate but child has started => hierarchy changes from tree to forest, and no one would know the termination of the orphan
+=> <font color="blue">解决方法 (Solution):</font>
+Linux: re-parent to <font color="red"><u>init</u></font> => <font color="black">(在 exit() 过程中完成)</font> Windows: <font color="black">保持森林 (Maintain forest)</font>
+
+# 第三列有一个图片没写
+
+**<font color="red">Context switching (上下文切换)</font>**: is switching procedure from one process to another.
+**<font color="blue">when? </font>**
+**1. **Process goes to blocking/waiting state {`wait()`, `sleep()`}. 
+**2. **A POSIX signal arrives, e.g., SIGCHLD. (POSIX 信号到达，例如 SIGCHLD)
+**3. **When OS scheduler says "time's up" (e.g., round-robin) [go to ready]. 
+**4. **Priority reason. (优先级原因)
+**<font color="blue">流程 (Procedure):</font>**
+**1. **出现像 `wait()` 的操作 
+**2. **Backup all current context of that process to the kernel-space's PCB.
+**3. **Load the Context of that process from the main memory to CPU. 
+**<font color="blue">问题: Context Switch is expensive (上下文切换是昂贵的)</font>**
+**Direct** costs in kernel: Save and restore registers, Switch process address space. 
+**Indirect** costs: cache misses, increase memory access latency. (增加内存访问延迟)
+<font color="red">User time</font> VS <font color="red">System time</font> -> CPU time on kernel space
+↳ CPU time on user-space (<font color="darkblue">不包括等待时间</font>)
+<font color="blue">System call is expensive</font>:1. Function calls cause overhead on stack. 2. Cause context switch from user-code to kernel-code. 
+**Real time < User + kernel**: multi-threading (Spent Core time are overlapping)
+**Real time > User + kernel**: OS seldom schedules CPU to you.
+
+==**Signal**==
+**<font color="blue">Type 1.</font>** From hardware interrupt / CPU exception(**kernel**), wrapped by the kernel as a POSIX signal - E.g., Ctrl-C -> SIGINT, segmentation fault -> SIGSEGV
+**<font color="blue">Type 2.</font>** Generated directly from **kernel**. -E.g., from `exit()` -> SIGCHLD
+**<font color="blue">Type 3.</font>** Generated from one **process** to another. - E.g., `kill 1234` from another process 885
+**<font color="red">kill() function:</font>** `int kill(pid_t pid, int sig);` e.g., `kill(getpid(), SIGTERM);`
+**<font color="red">signal() function:</font>** <font color="red">修改信号的Defalut Handler(默认处理行为）</font>![image-20250504014216358](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250504014216358.png)当我们收到信号后会继续，除非是 `sleep()`, `pause()`
+Signal 的状态是由数组表示的，如 SIGINT 对应的 bit (or mask)
+receive SIGINT 第 1 位变 1, handle 后变回 0
+**<font color="blue">Pause():</font>** 暂停直到收到信号 (Suspend until a signal is received)
+**<font color="blue">Asynchronous signal:</font>** 不是 process 产生，取决于外部因素 (ctrl-C), 时间不确定
+**<font color="blue">Synchronous Signal:</font>** 由 process 产生，时间确定
+**<font color="blue">alarm():</font>** -> asynchronous timing for a process
+括号里一个数 x, x 秒后, 进程中止 (发送 SIGALRM), 变为 Zombie
+`alarm(0)` indicates canceling the current timer
+**Interval timer** => `setitimer()`周期性发送信号
+
+==**Memory Management**== $$KB (2^{10}) MB (2^{20}) GB (2^{30}) TB (2^{40}) PB (2^{50}) EB (2^{60})$$
+32-bit system maximum amount memory in a process is $$2^{32}$$ bytes
+
+![image-20250502011356544](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250502011356544.png)
+<font color=red>Stack in-depth</font>
+**When a function is called** - push a <font color=blue>Stack frame</font> (从stack底到顶, Parameters-return address, local vars)
+**When a function returns** - Pop the <font color=blue>Pop the stack frame</font>. Set Stackptr = *frameptr; *frameptr stores the previous stack ptr.
+The compiler hardcodes this mechanism into your program, is not done by the kernel
+**Recursions avoid stack overflow**: Minimizing the number of function arguments, local vars, calls. Use global vars, malloc instead, trail recursion
+<font color=red>Heap</font>
+每次malloc都会创造一个空间, malloc后发生什么1. 有一个结构存当前数组大小和link list ptr 2. 紧接着才是数组, 指针指向这里 由于存在之前的结构，两个相邻数组指针相减大于数组大小
+free: 最后就直接shrink, 中间的会存一个专门的free的link list, 头是head, 尾是Null
+Segmentation fault
+
+==**Threading**==
+For <font color=green>Multi-threading</font>, they share the same code, same address space(share global vars),  same heap(malloc), different registers and stack(local vars)
+<font color=purple>Multi-thread examples</font>: Old Firefox - Single-process & each tab is a thread, Faster but crash one will crash all. Chrome - 1 tab 1 process![image-20250502221644955](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250502221644955.png)
+`pthread_create(&tid, NULL, func_name, func_parameters)` `pthread_join(tid, (void**) &t-output)`  第二个可以是NULL, 这个写法是手从`pthread_exit()`返回的值，t-output定义时定义的时指针，输出值用*t-output
+**Kernel** is a multi-thread program, it create kernel threads & OS threads 
+
+**==Scheduling==**
+**CPU - bound process**: user-time > sys-time
+**I/O - bound process**: user-time < sys-time
+<font color=red>**Classes of scheduling**</font>
+<font color=red>**1. ** **Preemptive scheduling**(抢占式调度, 也叫time-sharing) </font>
+![image-20250502231144130](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250502231144130.png)
+
+Evaluation: 1.Number of Context Switches 2. Turnaround Time (`Termination Time` - `Arrival Time`) 3. Waiting Time
+<font color = blue>**Algorithms** </font>
+**1. **<font color=green>Non-preemptive SJF</font>: Arrive 的任务中选最快的, 但存在长期饥饿问题, 一个任务很早就准备好了, 但是后面新来的任务一直比它短(SJF无解)
+**2. **<font color=green>Preemptive SJF</font>: 每当出现新任务的时候，如果这个时间小于当前任务的剩余时间就切换. waiting time和 turnaround time 降低, context switches增多
+**3. **<font color=green>Round-Robin (RR)</font>是preemptive的, 所有ready的都在queue中, 每个任务都有一个time quantum, 用完了没结束也换, 并且放到队尾. 解决长期饥饿但别的不占优
+<font color=red>**2. **Priority Scheduling:</font> 每个task都有priority, 高priority的先执行*
+Priority分为两种**static priority**和**dynamic priority**, static的就是fixed的, dynamic在每个新任务到来时会变化
+<font color=green>Multi-Level Queue Scheduling</font>: Each queue can use a different algorithm. Priorities can be adjusted dynamically.
+<font color=red>Thread Scheduling</font>: Linux >= 2.6之后我们就只关心threads, the scheduler determines which threads get CPU time.
+![image-20250503010332558](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250503010332558.png)
+
+**==File Management==**
+<font color=green>**Virtual File System(VFS)**</font>: An abstraction layer on top of concrete file systems
+不同的文件系统有不同的读取规则, 比如NTFS(windows), Ext4(Linux), Fat32(U盘), ISO9660(光碟), 这些在kernel space中, 用C lib中的读取是会调用对应的System Call, VFS则会根据文件启用不同的部分应对对应的文件系统
+<font color=Green>**Library call VS System call**</font>
+**`fopen()`**, invokes **`open()`** and returns a pointer to **FILE**(a structure define in **stdio.h**)
+**File**包含一个Buffered I/O,  读到哪的指针，1个int(file descriptor, `fd`)来描述.
+**Buffered I/O**
+Why need?  Reduces the number of system calls
+![image-20250503013857832](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250503013857832.png)
+**Change the buffer**
+`int setvbuf( FILE *stream, char *buf, int mode, size_t size );`
+buf存的是缓冲区地址, size是大小, 如果buf为NULL意味着不用缓冲区(buffer)
+`stdin` and `stdout` are line-buffered by default. `stderr` is un-buffered by default. 
+**`EOF`**: What is? 不存在于system call, 是定义在stdio.h中的,fread()会记住是否到达末尾, 到达了就返回-1(EOF), 如果没到reads data from the buffer or system calls.
+<font color=red>Linux: Everything is file</font> e.g. : Regular File, Directory, Block special file, Character special file(mouse)
+<font color=green>A "File"</font> contains **attributes** and **data**
+![image-20250503020301702](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250503020301702.png)
+<font color=red>stat</font>指令能看attributes, 对应的system call有`stat()`, `fstat()`, `lstat()`
+<font color=green>A directory</font> is a file consisting of **directory entries**(`dirent`), `dirent`is a struct
+![image-20250503021449046](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250503021449046.png)
+`read()`的流程:
+S1: 看是否 the end of the file is reached or not.  Comparing size and file seek.
+S2: Reading data
+S3: File data is stored in a fixed size cache in the kernel.
+S4: Write data to the userspace designated buffer.
+`write()`的流程:
+S1: Copy data from user-space buffer to kernel buffer.
+S2: 根据data length, (1) change in file size, if any, and (2) change in the file seek.
+S3: The call returns.
+S4: The buffered data will be flushed to the disk from time to time.
+<font color=red>The kernel buffer cache implies: </font>
+**1. **Improving reading & writing  performance
+**2.**Why not to press reset button: Sudden reset loses cached data not yet written to disk, potentially corrupting file systems.
+**3. **Why to "eject" USB drives: Ejecting ensures all cached data is written to the device, preventing data loss or corruption.
+
+==**Disk and booting**==
+![image-20250503162447287](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250503162447287.png)
+<font color=red>Why do we need to have partitions?</font>
+**1. **Multi-booting, 一个hard disk上可以有多个启动程序(windows, maxOS)
+**2. **Data management. 可以分很多个logic drive, 每个存不同的东西(C, D, E盘)
+**3. **Backup and Maintenance. Partitions 是独立的 & 可支持不同的file systems
+<font color=green>**HDD(Hard disk) **</font>
+disk由盘片(platter)组成, 每个有2个surface, 中央有个spindle. 每个surface被划分成了很多个track, track被切成了很多个小部分(sector). 每个sector包含了相等数量的数据位, 中间有gap(标识sector的格式化位).
+Disk用read/write hand 来读写, 其连接到actuator arm
+**CHS寻址方法**, Cylinder\Heads\Sector, 注意每个platter有两面, head数量为platter两倍.
+**LBA寻址方法**, 把disk视作连续的blocks, 每个block有对应的编号,并且字节数固定
+<font color=green>**SSD**</font>
+<font color=orange>**Booting**</font>(启动)
+Legacy boot流程: 1. BIOS(store in EPROM) locates the first bootable device (SSD/USB) 2. Executes its boot code (in MBR) 3. Boot code executes the fatter boot loader <font color=green>现在开始用UEFI</font>
+<font color=blue>MBR(Master boot record)</font>, stores **Boot code**(橘色部分, 前446bytes) & **partition table**(最多4个, 绿色部分, 后64字节), 结束标记magic number `0xaa55` 2 bytes, 共512 bytes 如今在替换为 **GUID Partition Table (GPT)** 
+**Boot code**: execute a **boot loader** in a bootable partition(Windows的C:\boot.ini或Linux的GRUB)
+**Boot loader**: locate one **kernel image** and boot (bring it to memory & execute) it.
+**Kernel image**: is just a file (Linux: `/boot/vmlinuz` `C:\Windows\System32\ ntoskrnl.exe`), when it is found the kernel start. It initializes all kernel subsystems.  (initialize memory layout, initialize drivers, etc.)
+**Partition table**: 里面每个项16个字节, 分为Bootable flag(1, 是否bootable`0x80`), 起始CHS(3), Partition type(1, ext4\FAT), 结束CHS(3), 起始LBA(4), Sizes in sectors(4) 这决定了每个分区最大2T
+Partition分为Primary和extended, extended只有一个, extended可以划分成很多个logical partition
+<font color=blue>**GUID Partition Table (GPT)** </font>
+![image-20250503220928413](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250503220928413.png)
+**属性标志**= **Attribute Flags** :描述分区特性的标志位，如是否可启动、是否为隐藏分区等。**分区名称** = **Partition Name**, 分区的人类可读名称，通常使用Unicode字符存储。**分区类型GUID**= **Partition Type GUID**(Fat/Ext4)
+
+# Mounting 没看
+
+**==File System==**: A way that **lays out** how data is organized on a storage device
+<font color=blue>Layout method</font>
+<font color=blue>**1. **Contiguous allocation</font>
+每个Partition的开头有一个Root Directory, 里面存了Filename, Starting address, Size. File deletion is easy, updating root directory. Bad for file creation. 然而即便剩空间大但依然可能放不下新的**(External Fragmentation**) $\Rarr$ Defragmentation process, 拼到一起紧凑一点, 但文件变大时就很麻烦(**Growth problem**)  <font color=green>Application: ISO 9660, CD-ROM</font>
+<font color=blue>**2. **Linked allocation</font> S1: Chop the storage device into equal-sized blocks. S2: Fill the empty space in a block-by-block manner.
+For each block, leave 4 bytes as the “pointer”, 最后一个写-1(NULL), Root Directory 写的是, file name, 1st Block Address, Size.
+解决External fragmentation和File Growth problem
+存在的问题 **1. **Internal Fragmentation $\Rarr$ Last Block 可能没 fully filled.  **2. **Poor random access performance, 如果我要访问File的19th block中的内容, 我需要从头一个一个读
+<font color=green>Application: FAT (File Allocation Table)</font> 用在: CF cards, SD cards, USB drives
+在之前的Linked  allocation方法中, 每个block前4byte存后面的位置, FAT则是集中起来存到一个table里, 记录了每个Block的下一个Block的address. 保存(部分)FAT
+在kernel cache中。
+Start from floppy disk and DOS, Dos中每个block被称为cluster, FAT xx表示xx-bit cluster address也就是说总共$2^{xx}$个blocks, FAT32只有28, MS reserves 4bits
+File System Size计算方法: Cluster Size$\times$Cluster address
+![image-20250504000704971](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250504000704971.png)Root Directory从Cluster #2开始做directory traversal
+<font color=green>Directory Entry</font>: 每个占32 bytes, 用来描述当前directory下包含哪些文件和sub-directory. **字节0**, 文件名的第一个字符(0x00或0xE5表示未分配), 1-10表示文件剩余的部分+扩展名(8+3, 8个字符文件名+3字符扩展名). **字节 11**：文件属性(只读\隐藏) **字节12**: 保留字节 **字节13-19**: Creation and access time information. **字节20-21**: High 2 bytes of the first cluster number (0 for FAT16 and FAT12).**22-25** Written time information. **26-27** Low 2 bytes of first cluster number. **28-31** File size(最大4G-1 Bytes, 主要用来决定最后一个Block读多少)
+<font color=red>找文件流程</font>: 在directory里面找First Cluster, 然后从FAT里一直读, 知道读到最后一个. <font color=red>如果要写</font>, 读取FSINFO, 这里面存了下一个空闲的Cluster的位置, 写完更新FSINFO. 如果要<font color=red>如果要删</font>, 更新FSINFO和FATS(改为0), 把directory entry的1st bytes 改为0x00
+<font color=red>取消删除算法</font>: Scan directory structure for entries with first byte 0xE5, restore original filename, extract file size (bytes 28-31) and first cluster number (bytes 20-21 and 26-27). For small files (single cluster), directly read data from first cluster; for large files (multiple clusters), rebuild cluster chain. When rebuilding, check FAT table status of first cluster; if cleared, assume contiguous allocation and read consecutive clusters until reaching file size or verify data validity using file signatures/magic numbers analysis.
+<font color=blue>**3. **Inode allocation</font>
+每个File directory都有一个独特的inode
+<font color=green>EXT2/3/4</font>: 由很多个group组成
+For Ext2 & Ext3:  Block size: 1,024, 2,048, or 4,096 bytes. Block address size: 4 bytes **Max file size** = Block size$\times$Block address size
+
+| Component                    | Description                                                  |
+| :--------------------------- | ------------------------------------------------------------ |
+| Superblock                   | Stores FS specific data. E.g., the total number of blocks, 、 |
+| GDT (Group Descriptor Table) | It stores:- The locations of the block bitmap, the inode bitmap, and the inode table.- Free block count, free inode count, etc... |
+| Block Bitmap                 | A bit string that represents if a block is allocated or not. |
+| Inode Bitmap                 | A bit string that represents if an inode (index-node) is allocated or not. |
+| Inode Table                  | An array of inodes ordered by the inode #.                   |
+| Data Blocks                  | An array of blocks that stored files.                        |
+
+![image-20250504011335293](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250504011335293.png)
+<font color=red>Why having groups?</font>
+(1) Performance: spatial locality. Group inodes and data blocks of related files together (2) Reliability: superblock and GDT are replicated in some block groups
+![image-20250504012101034](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250504012101034.png)<font color=green>directory entry in directory block</font> **0-3** Inode number of that file/directory **4-5** Length of this entry **6-6** Length of the filename **7-7** File Type 8+ Name in ASCII (max 255 character)
+<font color=red>File Deletion</font> Ext2直接把这个entry并入上一个entry的length Ext 3/4: the inode’s data block pointers are zeroed out
+<font color=purple>Hard and Soft Links</font>: 
+<font color=green>what is a hard link</font> A hard link is a directory entry pointing to the inode of an existing file.That file can accessed through two different pathnames可以理解为复制的时候其实是在新的写一个链接到那个Inode,这样实际上相当于没拷贝, 但我能读取. 我们对于每个Inode现在需要一个link count, 删除时(unlink())-1, =0时deallocated这个block
+**<font color=green>Symbolic link</font>**: create a new inode, 但是在40-99中存的是original file的path, 如果超出60bytes用1个normal inode + 1个direct data block去存 (其实这相当于一个快捷方式**Shortcut**), 如果删了源文件就会变成**dangling link**
+<font color=blue>File system consistency</font>: It is about how to detect and how to recover inconsistency in a file system.
+为什么存在inconsistency:以删除file为例子
+**1. **Removing its directory entry. **2.** Releasing the Inode entry. **3.** Returning all used disk blocks to the pool of free disk blocks (updating GDT).
+If power-down between Steps 1 & 2 ➔ Orphan Inode(未删除但无法通过目录访问)
+If power-down between Steps 2 & 3 ➔ Leak Storage(删除了空间浪费)
+
+**==I/O==**
+<font color=green>**Block devices**</font> 以固定大小的block传输数据(SSD/Hard disk)
+<font color=green>Character devices</font>:  以单个bit stream的形式传输数据（如键盘、串行端口）
+**Character device controller’s tasks**: **1. ** Transform **Raw serial bit stream** to **bytes for controller’s registers** **2.**  Checksum error handling **3. **Built-in registers and data buffer for communicating with the CPU
+<font color=green>**I/O device controller**</font> Built-in registers and data buffer for communicating with the CPU
+**1.** **Direct I/O**: CPU places data into (and read data from) register/data buffer directly through instructions like `IN REG, PORT` //read the value at PORT of the device to CPU register REG  **2. Memory-mapped I/O** – Map the device’s registers and data buffer to the memory space. Both kernel (driver) and user-space 可做到
+<font color=green>Device Drivers</font>: Follow the standard programming interface offered by the OS
+<font color=green>I/O Communication protocol</font>: 有三种协议
+• **Polling** – CPU puts one byte to device’s DATA register – CPU keeps polling the device’s READY register in order to put the next byte CPU需要不断主动检查，可能浪费处理能力
+• Interrupt – CPU waits for interrupt and does something else in between CPU效率更高，不需要等待
+• **Direct Memory Access (DMA)** – DMA controller on **system bus** – Offloading the per-byte polling/interrupt job from CPU to DMA controller 进一步减轻CPU负担，提高系统整体效率
+<font color=green>DMA</font>: 
+![image-20250504031018225](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250504031018225.png)
+<font color=green>Print Spooling</font>: 打印机显然不应该并发, 并且还要解决一个user process open printer but don't use $\Rarr$ Create a root level printer daemon process, and a spooling directory(临时储存区) 流程: 文件放到spooling directory, printer daemon从目录中获取文件发送到打印机 优势: 1. documents formatted for printing are stored in a queue at the speed of the computer, then retrieved and printed at the speed of the printer. 2. Multiple processes can write documents to the spool without waiting, and can then perform other tasks, while the "spooler" process operates the printer
+<font color=green>**Memory-mapped I/O**</font>
+通过设置mmap(内存映射)将文件链接到进程的地址空间 Write to an address = write to a file **Advantages**: 1. Reduced data copying 2. Simplified programming model 3. Leverages page cache 4. Supports random access 5. Potential performance improvement
+<font color=blue>How many copies in buffer when reading files using C `stdio.h` library?</font> 2, from disk to kernel buffer (page cache); From kernel buffer to user process buffer
+
+**==Virtual Memory==**: 每个process有自己的Virtual Memory, 不同process之间可能有相同的Virtual Memory address但指向不同Physical Address
+<font color=green>**MMU(memory management unit)**</font> 通常on-chip, 少量off-chip. 
+**How to work**? S1: CPU把虚拟地址给MMU, MMU根据Page table(在memory里)转换为物理地址 S2: 把物理地址发给Memory Controller, 再把内容传回CPU
+<font color=green>**Page table**</font> Every process has its own lookup table in the kernel space. 
+**How Large?** Number of Address $\times$ Size of an Address = $2^{32-12} \times 4 bytes$(for 32-bit), 虽然是一个转换的过程但实际上只存物理地址就好了
+Page Table有**permission/valid-invalid bit**(0不在memory)**/Frame Number**
+32位虚拟地址前20位是Virtual Page address会被Page Table翻译为Physical Frame address, 后面12位不动是Offset.
+Physical Memory是被分成了固定大小的块(frame，$2^{12} = 4KB$), 虚拟地址空间则是分为了跟多个Page. **一个page的虚拟地址对应一个physical frame.**
+**Page is the basic unit of memory allocation**,  所以存在internal fragmentation
+<font color=blue>Demand Paging</font>: 当malloc的时候只是声称内存已分配, 只分配虚拟地址空间页面, 扩大虚拟堆空间, 访问的时候才进入内存
+malloc流程: 1. 在page table中分配一个位置, 设置为invalid, Frame #设置为NIL 2.  memset时如果发现是invalid的会触发**Page Fault** 3. 异常发生后OS Kernel分配memory指定Frame # 变valid 4. 但如果Memory满了, 我们需要<font color=green>Swap area</font>(disk中)来帮助
+Swap area流程: 1. 选一个<font color=green>victim virtual page</font>复制到Swap area 2. 腾出来的memory位置给新的page来映射 3. Swap area中存PID 和Virtaul Page #, 原本的Virtual page Bit 变为0(invalid), 下次访问的时候触发page fault
+<font color=green>OOM(out of memory)</font>: swap area和 memory都满了
+**1st stage**: fill free Memory **2nd stage**: Swapping out other processes' frame to disk **3rd stage**: Swapping it own frame out (Disk activity files high! 持续Page Fault) **Final Stage**: swap area full, Kill this OOM process. 然而在这之后其余process运行时将持续发生page faults(Thrasing) $\Rarr$ Disk activity flies high again
+<font color=green>Swap area</font> is a space reserved in a permanent storage devise: Linux是一个单独分区Swap partition, Windows 是一个hides file `pagefile.sys` in one of the drives
+<font color=blue>fork() implementation</font>: 从Userspace memory的视角来看子进程和父进程是独立的,  它copy了一份stack\heap.... 但这种copy是heavyweight的$\Rarr$**Copy-on-write(COW)** <font color=green>COW technique</font>: fork后child process和parent process不立即复制memory page frames, 而是共享其会被标注为只读。当需要修改(写入)时, 出现page fault, 真的做一个copy
+<font color=blue>Page replacement algorithms</font>: goal: minimize further page faults
+<font color=green>**1. **Optimal</font>, 如果知道full reference string, 直接选最少的 <font color=green>**2. ** First in First out</font> <font color=green>**3. **Least recently used(LRU)</font> 方法1: 每个frame有age counter, 页面被应用的时候变为0，其他的+1,  时间复杂度Ө(n), 空间需要n个int方法2: Doubly linked list, 被引用就放到头, 每次去掉尾, 时间O(1), 空间2n个指针  LRU is approximate but hard to implement $\Rarr$ <font color=green>4. Clock Algorithm</font>: Circle linked list, 有一used bit, 被reference修改为1, 需要victim时像始终指针一样扫描, 是0就用 1则变为0 
+<font color=blue>Page table is huge $\Rarr$ $4MB</font> : Use Multi-level page table with unused pages not stored. 对于一个虚拟地址的前20bits, 高10bits对应一级页表中的1024项, 每一项对应一个耳机页表, 后10bits对应查出来的二级页表的1024项. 相当于这个拆分: 4MB = 1024\*1024\*4, 这样能分散的储存, 如果某个区域未分, 就不需要对应的二级页表.
+<font color=blue>Paging Hardware support</font>:  出现Context switch时, Page Table也要换
+TLB(Translation Lookaside Buffer): Cache recent translation of virtual page to physical frame, TLB在CPU和MMU之间, CPU首先看TLB有没有存, 没存让MMU再去Memory中找
