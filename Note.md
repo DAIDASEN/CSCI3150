@@ -154,9 +154,9 @@ receive SIGINT 第 1 位变 1, handle 后变回 0
 **When a function is called** - push a <font color=blue>Stack frame</font> (从stack底到顶, Parameters-return address, local vars)
 **When a function returns** - Pop the <font color=blue>Pop the stack frame</font>. Set Stackptr = *frameptr; *frameptr stores the previous stack ptr.
 The compiler hardcodes this mechanism into your program, is not done by the kernel
-**Recursions avoid stack overflow**: Minimizing the number of function arguments, local vars, calls. Use global vars, malloc instead, trail recursion![image-20250505185000809](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250505185000809.png)<font color=red>Heap</font> （heap比stack大的多）每次malloc都会创造一个空间, malloc后发生什么1. 有一个结构存当前数组大小和link list ptr 2. 紧接着才是数组, 指针指向这里 由于存在之前的结构，两个相邻数组指针相减大于数组大小
+**Recursions avoid stack overflow**: Minimizing the number of function arguments, local vars, calls. Use global vars, malloc instead, trail recursion![image-20250505185000809](.\Images\image-20250505185000809.png)<font color=red>Heap</font> （heap比stack大的多）每次malloc都会创造一个空间, malloc后发生什么1. 有一个结构存当前数组大小和link list ptr 2. 紧接着才是数组, 指针指向这里 由于存在之前的结构，两个相邻数组指针相减大于数组大小
 free: 最后就直接shrink, 中间的会存一个专门的free的link list, 头是head, 尾是Null
-Segmentation fault: 写入read-only段或读、写unallocated段报错（试图访问无权访问的内存）
+Segmentation fault: 写入read-only段或读、写unallocated段报错（试图访问无权访问的内存)
 
 ==**Threading**==
 For <font color=green>Multi-threading</font>, they share the same code, same address space(share global vars),  same heap(malloc), different registers and stack(local vars)
