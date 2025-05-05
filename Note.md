@@ -135,7 +135,8 @@ e.g.系统正在将数据写入磁盘，此时即使尝试强制关机，也必�
 **<font color="blue">Type 2.</font>** Generated directly from **kernel**. -E.g., from `exit()` -> SIGCHLD
 **<font color="blue">Type 3.</font>** Generated from one **process** to another. - E.g., `kill 1234` from another process 885
 **<font color="red">kill() function:</font>** `int kill(pid_t pid, int sig);` e.g., `kill(getpid(), SIGTERM);`
-**<font color="red">signal() function:</font>** <font color="red">修改信号的Defalut Handler(默认处理行为）</font>![image-20250504014216358](.\Images\image-20250504014216358.png)当我们收到信号后会继续，除非是 `sleep()`, `pause()`
+**<font color="red">signal() function:</font>** <font color="red">修改信号的Defalut Handler(默认处理行为）</font>![image-20250504014216358](.\Images\image-20250504014216358.png)
+当我们收到信号后会继续，除非是 `sleep()`, `pause()`
 Signal 的状态是由数组表示的，如 SIGINT 对应的 bit (or mask)
 receive SIGINT 第 1 位变 1, handle 后变回 0
 **<font color="blue">Pause():</font>** 暂停直到收到信号 (Suspend until a signal is received)
@@ -235,6 +236,21 @@ Thread Function:获取互斥锁;{检查共享变量`shared`是否小于最大值
 保留了原子性的等待/通知部分，但条件变量在被通知(posted)后会无条件地唤醒线程（重要区别：被唤醒 ≠ 条件现在成立），条件检查被移到外部，在代码中实现，并且可以支持任意谓词(predicate)，例如 x!=y
 If protecting shared resources (i.e., requires mutual exclusion) ➔ use semaphore or pthread_mutex 
 When doing something more (e.g., IPC problems like producer-consumer) ➔ use semaphore or Pthread’s condition variables
+Spinlock using **TAS[test_and_set()] **(by Maurice Herlihy): 当锁未被持有时，`lock`值为`false`;`test_and_set(&lock)`读取`false`并将`lock`设为`true`，然后返回`false`;`while`条件为`false`，循环结束，线程获得锁; 当锁已被持有时，`test_and_set`返回`true`，线程继续自旋
+问题：不足以实现超过两个线程的无等待同步；ABA问题无法解决
+**CAS[compare_and_swap()]**: lock - a shared var
+**锁获取**：线程尝试原子地将锁值从0(未锁定)更改为1(已锁定);如果成功(CAS返回true)，线程进入临界区;如果不成功(锁已被另一个线程持有)，线程在while循环中自旋，不断尝试直到成功
+**锁释放**：完成临界区后，线程简单地将锁设回0;这允许另一个自旋的线程获取锁
+**初始化**：锁初始化为0(未锁定状态)：`Initialize _Atomic lock = 0`
+**Lock-free**:线程不阻塞等待资源，而是直接尝试操作，如果发现冲突则重试。
+**读取**：线程读取共享数据的当前状态;**计算**：基于读取的状态计算新状态;**更新**：使用原子操作（如CAS)尝试更新; 验证：检查更新是否成功: 1成功：操作完成; 2失败：重新开始整个过程
+lock-based: lock-holder sleeping; lock-holder diess; deadlock **VS** lock-free: ABA problem; difficult to code **VS** wait-free: guarantee progress for every thread; operation-X() must finish in a finite number of steps; hard to achieve
+memory consistency: Strong x86 (i.e., Intel and AMD)➔ cache coherence ➔core 2 reads “new”; Weak ARM (Advanced RISC Machine) ➔ almost all mobile devices ➔ no cache coherence ➔ core 2 reads “old”
+**Dining philosopher**: requirements:mutual exclusion; deadlock-free 先释放互斥锁，再等待条件
+main func: 基本行为循环：思考→拿筷子→进食→放筷子→思考...
+entry: 首先获取互斥锁;将自己标记为饥饿状态; 调用`captain(i)`尝试获取筷子; 释放互斥锁，允许其他哲学家操作; 如果`captain(i)`中没有将自己设为EATING状态，则在`p[i]`信号量上等待
+exit: 获取互斥锁; 将自己标记为思考状态（表示筷子已放下); 尝试让左右邻居进食（如果他饥饿且条件满足)captain(LEFT)再(RIGHT); 释放互斥锁
+captain: 检查三个条件：哲学家i饥饿且左右邻居不能正在进食; 如果条件满足,将哲学家i标记为进食状态;发送信号量p[i]，唤醒可能在等待的哲学家i
 **==File Management==**
 <font color=green>**Virtual File System(VFS)**</font>: An abstraction layer on top of concrete file systems
 不同的文件系统有不同的读取规则, 比如NTFS(windows), Ext4(Linux), Fat32(U盘), ISO9660(光碟), 这些在kernel space中, 用C lib中的读取是会调用对应的System Call, VFS则会根据文件启用不同的部分应对对应的文件系统
@@ -256,15 +272,15 @@ buf存的是缓冲区地址, size是大小, 如果buf为NULL意味着不用缓�
 <font color=green>A directory</font> is a file consisting of **directory entries**(`dirent`), `dirent`is a struct
 ![image-20250503021449046](.\Images\image-20250503021449046.png)
 `read()`的流程:
-S1: 看是否 the end of the file is reached or not.  Comparing size and file seek.
+S1: 看是否 the end of the file is reached or not.  Comparing size and file seek. （比较文件大小和当前文件指针位置）
 S2: Reading data
 S3: File data is stored in a fixed size cache in the kernel.
 S4: Write data to the userspace designated buffer.
 `write()`的流程:
-S1: Copy data from user-space buffer to kernel buffer.
+S1: Copy data from user-space buffer to kernel buffer. （用户空间和内核空间是隔离的）
 S2: 根据data length, (1) change in file size, if any, and (2) change in the file seek.
 S3: The call returns.
-S4: The buffered data will be flushed to the disk from time to time.
+S4: The buffered data will be flushed to the disk from time to time. （在缓冲区已满时也会flush)
 <font color=red>The kernel buffer cache implies: </font>
 **1. **Improving reading & writing  performance
 **2.**Why not to press reset button: Sudden reset loses cached data not yet written to disk, potentially corrupting file systems.
@@ -274,12 +290,12 @@ S4: The buffered data will be flushed to the disk from time to time.
 ![image-20250503162447287](.\Images\image-20250503162447287.png)
 <font color=red>Why do we need to have partitions?</font>
 **1. **Multi-booting, 一个hard disk上可以有多个启动程序(windows, maxOS)
-**2. **Data management. 可以分很多个logic drive, 每个存不同的东西(C, D, E盘)
-**3. **Backup and Maintenance. Partitions 是独立的 & 可支持不同的file systems
+**2. **Data management, 可以分很多个logic drive, 每个存不同的东西(C, D, E盘)
+**3. **Backup and Maintenance, Partitions 是独立的 & 可支持不同的file systems
 <font color=green>**HDD(Hard disk) **</font>
 disk由盘片(platter)组成, 每个有2个surface, 中央有个spindle. 每个surface被划分成了很多个track, track被切成了很多个小部分(sector). 每个sector包含了相等数量的数据位, 中间有gap(标识sector的格式化位).
 Disk用read/write hand 来读写, 其连接到actuator arm
-**CHS寻址方法**, Cylinder\Heads\Sector, 注意每个platter有两面, head数量为platter两倍.
+**CHS寻址方法**, Cylinder\Heads\Sector, 注意每个platter有两面, head数量为platter两倍. e.g. 如果一个磁盘有4个盘片（8个表面），每个磁道有63个扇区，要访问C=2, H=5, S=10的位置：物理位置 = (2 × 8 + 5) × 63 + 10 - 1 = 21 × 63 + 9 = 1332
 **LBA寻址方法**, 把disk视作连续的blocks, 每个block有对应的编号,并且字节数固定
 <font color=green>**SSD**</font>
 <font color=orange>**Booting**</font>(启动)
@@ -293,6 +309,8 @@ Partition分为Primary和extended, extended只有一个, extended可以划分成
 <font color=blue>**GUID Partition Table (GPT)** </font>
 ![image-20250503220928413](.\Images\image-20250503220928413.png)
 **属性标志**= **Attribute Flags** :描述分区特性的标志位，如是否可启动、是否为隐藏分区等。**分区名称** = **Partition Name**, 分区的人类可读名称，通常使用Unicode字符存储。**分区类型GUID**= **Partition Type GUID**(Fat/Ext4)
+**挂载（Mounting）** 是操作系统将一个存储设备（如硬盘分区、CD-ROM、USB驱动器等）或文件系统与目录树中的特定访问点（称为"挂载点")关联起来的过程。这使得存储设备上的文件和目录可以通过这个挂载点被访问，就像它们是本地文件系统的一部分一样。
+挂载操作不会删除挂载点原有内容，只是暂时使其不可见：原挂载点内容在存储介质上保持不变；卸载后，原内容会重新可见；这种机制允许灵活地组织和访问不同存储设备上的数据
 
 # Mounting 没看
 
@@ -303,15 +321,14 @@ Partition分为Primary和extended, extended只有一个, extended可以划分成
 <font color=blue>**2. **Linked allocation</font> S1: Chop the storage device into equal-sized blocks. S2: Fill the empty space in a block-by-block manner.
 For each block, leave 4 bytes as the “pointer”, 最后一个写-1(NULL), Root Directory 写的是, file name, 1st Block Address, Size.
 解决External fragmentation和File Growth problem
-存在的问题 **1. **Internal Fragmentation $\Rarr$ Last Block 可能没 fully filled.  **2. **Poor random access performance, 如果我要访问File的19th block中的内容, 我需要从头一个一个读
+存在的问题 **1. **Internal Fragmentation(a file is not always a multiple of block size) $\Rarr$ Last Block 可能没 fully filled.  **2. **Poor random access performance, 如果我要访问File的19th block中的内容, 我需要从头一个一个读，直到从第18个找到19个
 <font color=green>Application: FAT (File Allocation Table)</font> 用在: CF cards, SD cards, USB drives
-在之前的Linked  allocation方法中, 每个block前4byte存后面的位置, FAT则是集中起来存到一个table里, 记录了每个Block的下一个Block的address. 保存(部分)FAT
-在kernel cache中。
+在之前的Linked  allocation方法中, 每个block前4byte存后面的位置, FAT则是集中起来存到一个table里, 记录了每个Block的下一个Block的address. 保存(部分)FAT在kernel cache中。
 Start from floppy disk and DOS, Dos中每个block被称为cluster, FAT xx表示xx-bit cluster address也就是说总共$2^{xx}$个blocks, FAT32只有28, MS reserves 4bits
 File System Size计算方法: Cluster Size$\times$Cluster address
-![image-20250504000704971](.\Images\image-20250504000704971.png)Root Directory从Cluster #2开始做directory traversal
+![image-20250504000704971](.\Images\image-20250504000704971.png)Root Directory（储存根目录的文件和子目录项）从Cluster #2开始做directory traversal
 <font color=green>Directory Entry</font>: 每个占32 bytes, 用来描述当前directory下包含哪些文件和sub-directory. **字节0**, 文件名的第一个字符(0x00或0xE5表示未分配), 1-10表示文件剩余的部分+扩展名(8+3, 8个字符文件名+3字符扩展名). **字节 11**：文件属性(只读\隐藏) **字节12**: 保留字节 **字节13-19**: Creation and access time information. **字节20-21**: High 2 bytes of the first cluster number (0 for FAT16 and FAT12).**22-25** Written time information. **26-27** Low 2 bytes of first cluster number. **28-31** File size(最大4G-1 Bytes, 主要用来决定最后一个Block读多少)
-<font color=red>找文件流程</font>: 在directory里面找First Cluster, 然后从FAT里一直读, 知道读到最后一个. <font color=red>如果要写</font>, 读取FSINFO, 这里面存了下一个空闲的Cluster的位置, 写完更新FSINFO. 如果要<font color=red>如果要删</font>, 更新FSINFO和FATS(改为0), 把directory entry的1st bytes 改为0x00
+<font color=red>找文件流程</font>: 在directory里面找First Cluster, 然后从FAT里一直读, 直到读到最后一个. <font color=red>如果要写</font>, 读取FSINFO, 这里面存了下一个空闲的Cluster的位置, 写完更新FSINFO. 如果要<font color=red>如果要删</font>, 更新FSINFO和FATS(改为0), 把directory entry的1st bytes 改为0x00
 <font color=red>取消删除算法</font>: Scan directory structure for entries with first byte 0xE5, restore original filename, extract file size (bytes 28-31) and first cluster number (bytes 20-21 and 26-27). For small files (single cluster), directly read data from first cluster; for large files (multiple clusters), rebuild cluster chain. When rebuilding, check FAT table status of first cluster; if cleared, assume contiguous allocation and read consecutive clusters until reaching file size or verify data validity using file signatures/magic numbers analysis.
 <font color=blue>**3. **Inode allocation</font>
 每个File directory都有一个独特的inode
@@ -331,15 +348,15 @@ For Ext2 & Ext3:  Block size: 1,024, 2,048, or 4,096 bytes. Block address size: 
 <font color=red>Why having groups?</font>
 (1) Performance: spatial locality. Group inodes and data blocks of related files together (2) Reliability: superblock and GDT are replicated in some block groups
 ![image-20250504012101034](.\Images\image-20250504012101034.png)<font color=green>directory entry in directory block</font> **0-3** Inode number of that file/directory **4-5** Length of this entry **6-6** Length of the filename **7-7** File Type 8+ Name in ASCII (max 255 character)
-<font color=red>File Deletion</font> Ext2直接把这个entry并入上一个entry的length Ext 3/4: the inode’s data block pointers are zeroed out
+<font color=red>File Deletion</font> Ext2直接把这个entry并入上一个entry的length; Ext 3/4: the inode’s data block pointers are zeroed out
 <font color=purple>Hard and Soft Links</font>: 
 <font color=green>what is a hard link</font> A hard link is a directory entry pointing to the inode of an existing file.That file can accessed through two different pathnames可以理解为复制的时候其实是在新的写一个链接到那个Inode,这样实际上相当于没拷贝, 但我能读取. 我们对于每个Inode现在需要一个link count, 删除时(unlink())-1, =0时deallocated这个block
-**<font color=green>Symbolic link</font>**: create a new inode, 但是在40-99中存的是original file的path, 如果超出60bytes用1个normal inode + 1个direct data block去存 (其实这相当于一个快捷方式**Shortcut**), 如果删了源文件就会变成**dangling link**
+**<font color=green>Symbolic link</font>**: create a new inode, 但是在40-99中存的是original file的path, 如果超出60bytes用1个normal inode + 1个direct data block去存 (其实这相当于一个快捷方式**Shortcut**), 如果删了源文件就会变成**dangling link**(悬空链接)
 <font color=blue>File system consistency</font>: It is about how to detect and how to recover inconsistency in a file system.
 为什么存在inconsistency:以删除file为例子
 **1. **Removing its directory entry. **2.** Releasing the Inode entry. **3.** Returning all used disk blocks to the pool of free disk blocks (updating GDT).
-If power-down between Steps 1 & 2 ➔ Orphan Inode(未删除但无法通过目录访问)
-If power-down between Steps 2 & 3 ➔ Leak Storage(删除了空间浪费)
+If power-down between Steps 1 & 2 ➔ Orphan Inode(无法通过目录访问但仍占用资源)
+If power-down between Steps 2 & 3 ➔ Leak Storage(数据块被标记为已使用但实际未被分配)
 
 **==I/O==**
 <font color=green>**Block devices**</font> 以固定大小的block传输数据(SSD/Hard disk)
@@ -350,14 +367,14 @@ If power-down between Steps 2 & 3 ➔ Leak Storage(删除了空间浪费)
 <font color=green>Device Drivers</font>: Follow the standard programming interface offered by the OS
 <font color=green>I/O Communication protocol</font>: 有三种协议
 • **Polling** – CPU puts one byte to device’s DATA register – CPU keeps polling the device’s READY register in order to put the next byte CPU需要不断主动检查，可能浪费处理能力
-• Interrupt – CPU waits for interrupt and does something else in between CPU效率更高，不需要等待
+• **Interrupt** – CPU waits for interrupt and does something else in between CPU效率更高，不需要等待;高速设备可能导致频繁中断
 • **Direct Memory Access (DMA)** – DMA controller on **system bus** – Offloading the per-byte polling/interrupt job from CPU to DMA controller 进一步减轻CPU负担，提高系统整体效率
 <font color=green>DMA</font>: 
 ![image-20250504031018225](.\Images\image-20250504031018225.png)
 <font color=green>Print Spooling</font>: 打印机显然不应该并发, 并且还要解决一个user process open printer but don't use $\Rarr$ Create a root level printer daemon process, and a spooling directory(临时储存区) 流程: 文件放到spooling directory, printer daemon从目录中获取文件发送到打印机 优势: 1. documents formatted for printing are stored in a queue at the speed of the computer, then retrieved and printed at the speed of the printer. 2. Multiple processes can write documents to the spool without waiting, and can then perform other tasks, while the "spooler" process operates the printer
-<font color=green>**Memory-mapped I/O**</font>
+<font color=green>**Memory-mapped I/O**</font> on user-process
 通过设置mmap(内存映射)将文件链接到进程的地址空间 Write to an address = write to a file **Advantages**: 1. Reduced data copying 2. Simplified programming model 3. Leverages page cache 4. Supports random access 5. Potential performance improvement
-<font color=blue>How many copies in buffer when reading files using C `stdio.h` library?</font> 2, from disk to kernel buffer (page cache); From kernel buffer to user process buffer
+adv: consider <font color=blue>How many copies in buffer when reading files using C `stdio.h` library?</font> 2, from disk to kernel buffer (page cache); from kernel buffer to user process buffer
 
 **==Virtual Memory==**: 每个process有自己的Virtual Memory, 不同process之间可能有相同的Virtual Memory address但指向不同Physical Address
 <font color=green>**MMU(memory management unit)**</font> 通常on-chip, 少量off-chip. 
@@ -366,17 +383,17 @@ If power-down between Steps 2 & 3 ➔ Leak Storage(删除了空间浪费)
 **How Large?** Number of Address $\times$ Size of an Address = $2^{32-12} \times 4 bytes$(for 32-bit), 虽然是一个转换的过程但实际上只存物理地址就好了
 Page Table有**permission/valid-invalid bit**(0不在memory)**/Frame Number**
 32位虚拟地址前20位是Virtual Page address会被Page Table翻译为Physical Frame address, 后面12位不动是Offset.
-Physical Memory是被分成了固定大小的块(frame，$2^{12} = 4KB$), 虚拟地址空间则是分为了跟多个Page. **一个page的虚拟地址对应一个physical frame.**
+Physical Memory是被分成了固定大小的块(frame，$2^{12} = 4KB$), 虚拟地址空间则是分为了很多个Page. **一个page的虚拟地址对应一个physical frame.**
 **Page is the basic unit of memory allocation**,  所以存在internal fragmentation
 <font color=blue>Demand Paging</font>: 当malloc的时候只是声称内存已分配, 只分配虚拟地址空间页面, 扩大虚拟堆空间, 访问的时候才进入内存
 malloc流程: 1. 在page table中分配一个位置, 设置为invalid, Frame #设置为NIL 2.  memset时如果发现是invalid的会触发**Page Fault** 3. 异常发生后OS Kernel分配memory指定Frame # 变valid 4. 但如果Memory满了, 我们需要<font color=green>Swap area</font>(disk中)来帮助
 Swap area流程: 1. 选一个<font color=green>victim virtual page</font>复制到Swap area 2. 腾出来的memory位置给新的page来映射 3. Swap area中存PID 和Virtaul Page #, 原本的Virtual page Bit 变为0(invalid), 下次访问的时候触发page fault
 <font color=green>OOM(out of memory)</font>: swap area和 memory都满了
-**1st stage**: fill free Memory **2nd stage**: Swapping out other processes' frame to disk **3rd stage**: Swapping it own frame out (Disk activity files high! 持续Page Fault) **Final Stage**: swap area full, Kill this OOM process. 然而在这之后其余process运行时将持续发生page faults(Thrasing) $\Rarr$ Disk activity flies high again
+**1st stage**: fill free Memory **2nd stage**: Swapping out other processes' frame to disk **3rd stage**: Swapping it own frame out (Disk activity files high! 持续Page Fault) **Final Stage**: swap area full, Kill this OOM process. 然而在这之后其余process运行时将持续发生page faults(Thrasing) $\Rarr$ Disk activity flies high again 系统花费大量时间在页面换入换出上，而几乎没有时间执行实际工作
 <font color=green>Swap area</font> is a space reserved in a permanent storage devise: Linux是一个单独分区Swap partition, Windows 是一个hides file `pagefile.sys` in one of the drives
 <font color=blue>fork() implementation</font>: 从Userspace memory的视角来看子进程和父进程是独立的,  它copy了一份stack\heap.... 但这种copy是heavyweight的$\Rarr$**Copy-on-write(COW)** <font color=green>COW technique</font>: fork后child process和parent process不立即复制memory page frames, 而是共享其会被标注为只读。当需要修改(写入)时, 出现page fault, 真的做一个copy
 <font color=blue>Page replacement algorithms</font>: goal: minimize further page faults
 <font color=green>**1. **Optimal</font>, 如果知道full reference string, 直接选最少的 <font color=green>**2. ** First in First out</font> <font color=green>**3. **Least recently used(LRU)</font> 方法1: 每个frame有age counter, 页面被应用的时候变为0，其他的+1,  时间复杂度Ө(n), 空间需要n个int方法2: Doubly linked list, 被引用就放到头, 每次去掉尾, 时间O(1), 空间2n个指针  LRU is approximate but hard to implement $\Rarr$ <font color=green>4. Clock Algorithm</font>: Circle linked list, 有一used bit, 被reference修改为1, 需要victim时像始终指针一样扫描, 是0就用 1则变为0 
-<font color=blue>Page table is huge $\Rarr$ $4MB</font> : Use Multi-level page table with unused pages not stored. 对于一个虚拟地址的前20bits, 高10bits对应一级页表中的1024项, 每一项对应一个耳机页表, 后10bits对应查出来的二级页表的1024项. 相当于这个拆分: 4MB = 1024\*1024\*4, 这样能分散的储存, 如果某个区域未分, 就不需要对应的二级页表.
+<font color=blue>Page table is huge $\Rarr$ $4MB</font> : Use Multi-level page table with unused pages not stored. 对于一个虚拟地址的前20bits, 高10bits对应一级页表中的1024项, 每一项对应一个二级页表, 后10bits对应查出来的二级页表的1024项. 相当于这个拆分: 4MB = 1024\*1024\*4, 这样能分散的储存, 如果某个区域未分, 就不需要对应的二级页表.
 <font color=blue>Paging Hardware support</font>:  出现Context switch时, Page Table也要换
 TLB(Translation Lookaside Buffer): Cache recent translation of virtual page to physical frame, TLB在CPU和MMU之间, CPU首先看TLB有没有存, 没存让MMU再去Memory中找
