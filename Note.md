@@ -32,9 +32,19 @@ Leads to: non-sequential access
 <font color=green>**Pipeline:**</font>     | Fetch | Decode | Execute | Write Back |
 Sequential execution: One instruction finishes before the next one starts.
 **Scalar Pipeline:** 上一轮fetch后decode时fetch下一个Cycle
-**Superscalar Pipeline:** Builds upon the Scalar pipeline by adding instruction-level parallelism. => Multiple instruction cycles run in parallel.
+**Superscalar Pipeline:** Builds upon the Scalar pipeline by adding instruction-level parallelism. => Multiple instruction cycles run in parallel. 在每个时钟周期内同时执行多条指令
+**Processsor Design** CISC & RISC
+***\*时钟周期\****：CISC 多周期执行指令，RISC 单周期执行 ***\*内存访问\****：CISC 任何指令可访问内存，RISC 仅 LOAD/STORE 指令访问 - ***\*流水线\****：CISC 不使用或较少使用流水线，RISC 高度流水线化 - ***\*指令执行\****：CISC 由微程序解释，RISC 由硬件直接执行 - ***\*指令格式\****：CISC 可变长度，RISC 固定长度 - ***\*指令集\****：CISC 指令和寻址模式多，RISC 指令和模式少 - ***\*复杂性分布\****：CISC 复杂性在微程序，RISC 复杂性在编译器 - ***\*寄存器\****：CISC 单一寄存器组，RISC 多寄存器组
 
-# 一列最下没对
+***\*RISC 优势\****：执行速度快、功耗低、设计简单，适合移动设备和嵌入式系统 
+***\*CISC 优势\****：代码密度高、兼容性好、对编译器要求低，适合复杂计算任务
+***\*桌面/服务器\****：CISC (x86/x64) 主导，因历史兼容性和软件生态 
+***\*移动/嵌入式\****：RISC (ARM) 主导，因低功耗和高效率
+
+Von Neumann 优势: 设计简单，成本低  内存分配灵活  适合通用计算任务   [程序和数据在同一存储器] （RISC: ARM7,CISC: Pentium)
+Harvard 优势: 更高的执行效率 减少指令和数据访问冲突  更适合实时系统和特定应用 可支持不同宽度的数据和指令总线 (RISC: ARM9,CISC: SHARC(DSP))
+==Sequential access is faster than random==: 可以利用缓存(caching)和预取(pre-fetching)机制 （random hurts CPU’s speculative exectution）
+CPU has a 1-bit register to check if the currently in **user-mode** or **kernel-mode**
 
 ==**Process (User space)**==
 Process is a program in execution (Contains all accounting information)
@@ -49,9 +59,10 @@ Can be obtained using `getpid()` -> `(int) getpid()`
 <font color="green">Program execution:</font> exec\*()
 <font color=blue>execl( PATH, char arg0, ..., NULL) </font> e.g., execl("/bin/ls", "ls", NULL)
 可多次调 用 exe 让一个 process 执行多个 program
+exec之后会exit(0)，后续的不会被执行，will never return to original code
 **1. **It will **replace** user-space info: Program Code, Memory, Register values.
-**2. ** kernel info is **preserved**: PID, process relationships.*
-<font color="green">fork() + exec*() + wait() = system()</font>
+**2. ** kernel info is **preserved**: PID, process relationships.
+<font color="green">fork() + exec*() + wait() = system() </font>     [**exec\*()** 函数族用新的程序替换子进程的内存空间]
 <font color=blue>Environment variables: </font> main() 函数最后会有一个**envp是字符串数组存环境变量
 
 | 变量名     | 描述                                                     | 变量名      | 描述                                  |
@@ -65,6 +76,7 @@ Can be obtained using `getpid()` -> `(int) getpid()`
 立即**Return**如果无子进程或之前有终止的子进程(此时返回的是-1)
 <font color="blue">waitpid(pid_t pid, int *status, int options)</font>
 `pid`: `(+)`: 特定的子进程 `0`: Wait for any child in the same process group (调用同组) `-1`: 等待任意, 相当于wait()
+Can a process execute more than one program? Yes, keeps on calling the exec system call family. （代码和数据会更新，但pid和其他的kernel-space info保持不变）
 
 ==**Process (Kernel Space)**==
 <font color=blue>运行中的`fork()`: </font>
@@ -75,7 +87,7 @@ Can be obtained using `getpid()` -> `(int) getpid()`
 (<font color="green">User</font>): **Cleared** Local variable, Dynamically allocated memory, **Reset** Global variable, Code + Constants
 **`exit()`:**
 **1. **kernel free all the allocated memory & all on the user-space memory
-**<font color="darkred">However</font>:** <font color="red">PID still in kernel</font> => <font color="red">Zombie process</font> (<font color="purple"><defunct></font> 可查 )<font color="green">Why need Zombie?</font> allow to read exit status
+**<font color="darkred">However</font>:** <font color="red">PID still in kernel</font> => <font color="red">Zombie process</font> (<font color="purple"><defunct></font> 可查 )  <font color="green">Why need Zombie?</font> allow to read exit status
 **2. **kernel sends <font color="blue">SIGCHLD</font> to parents. => help parents to deal with Zombie process. <font color="blue">(用 wait 会在 SIGCHLD 后彻底清除子进程 )</font>
 **`exit()` system call turns a process into a zombie when...**
 **1. **The process calls `exit()`
@@ -90,7 +102,14 @@ Can be obtained using `getpid()` -> `(int) getpid()`
 => <font color="blue">解决方法 (Solution):</font>
 Linux: re-parent to <font color="red"><u>init</u></font> => <font color="black">(在 exit() 过程中完成)</font> Windows: <font color="black">保持森林 (Maintain forest)</font>
 
-# 第三列有一个图片没写
+可中断阻塞 (Interruptible)：进程等待某个条件，但可以被信号打断；对系统影响较小，进程可被管理和控制
+可以通过发送信号（如SIGINT、SIGTERM）使进程从等待状态返回；允许用户或系统管理员在必要时终止进程
+常见情况：1.read()从终端或网络读取数据 ；2.`sleep()`、`wait()`函数调用；3. 等待信号量或互斥锁
+e.g. Ctrl+C中断正在等待用户输入的程序
+不可中断阻塞 (Uninterruptible)：进程处于不能被信号打断的等待状态；如果条件长时间不满足，可能导致系统资源占用，甚至需要重启系统
+即使发送SIGKILL信号也无法终止进程；通常涉及关键的系统级操作，中断可能导致数据不一致；必须等待操作完成或系统条件满足才能继续
+常见情况：1.直接磁盘I/O操作（不通过缓冲）；2.某些系统调用（如`sync`）；3.NFS服务器无响应；4.设备驱动程序中的关键操作
+e.g.系统正在将数据写入磁盘，此时即使尝试强制关机，也必须等待写入完成
 
 **<font color="red">Context switching (上下文切换)</font>**: is switching procedure from one process to another.
 **<font color="blue">when? </font>**
@@ -128,7 +147,7 @@ receive SIGINT 第 1 位变 1, handle 后变回 0
 **Interval timer** => `setitimer()`周期性发送信号
 
 ==**Memory Management**== $$KB (2^{10}) MB (2^{20}) GB (2^{30}) TB (2^{40}) PB (2^{50}) EB (2^{60})$$
-32-bit system maximum amount memory in a process is $$2^{32}$$ bytes
+32-bit system maximum amount memory in a process is $$2^{32}$$ bytes = 4GB     1MB = 1024x1024 byte
 
 ![image-20250502011356544](.\Images\image-20250502011356544.png)
 <font color=red>Stack in-depth</font>
@@ -136,16 +155,33 @@ receive SIGINT 第 1 位变 1, handle 后变回 0
 **When a function returns** - Pop the <font color=blue>Pop the stack frame</font>. Set Stackptr = *frameptr; *frameptr stores the previous stack ptr.
 The compiler hardcodes this mechanism into your program, is not done by the kernel
 **Recursions avoid stack overflow**: Minimizing the number of function arguments, local vars, calls. Use global vars, malloc instead, trail recursion
-<font color=red>Heap</font>
+
+<div style="display: flex; width: 100%;"> <div style="flex: 1; padding-right: 10px;"> <img src="./Images/761c7aa79678e6a32deeb59a15c5a0f.png" width="100%" alt="image-20250502011356544"> </div> <div style="flex: 1; padding-left: 10px;"> 
+<pre><code>int fun2(int x, int y) { 
+	int c = 10; 
+	return (x + y + c); 
+}
+int fun1(int u, int v) {
+	return fun2(v, u);
+}
+int main(void) {
+	int a = 1, b = 2;
+	b = fun1(a, b);
+	return 0;
+}
+
+<font color=red>Heap</font> （heap比stack大的多）
+
 每次malloc都会创造一个空间, malloc后发生什么1. 有一个结构存当前数组大小和link list ptr 2. 紧接着才是数组, 指针指向这里 由于存在之前的结构，两个相邻数组指针相减大于数组大小
 free: 最后就直接shrink, 中间的会存一个专门的free的link list, 头是head, 尾是Null
-Segmentation fault
+Segmentation fault: 写入read-only段或读、写unallocated段报错（试图访问无权访问的内存）
 
 ==**Threading**==
 For <font color=green>Multi-threading</font>, they share the same code, same address space(share global vars),  same heap(malloc), different registers and stack(local vars)
 <font color=purple>Multi-thread examples</font>: Old Firefox - Single-process & each tab is a thread, Faster but crash one will crash all. Chrome - 1 tab 1 process![image-20250502221644955](.\Images\image-20250502221644955.png)
-`pthread_create(&tid, NULL, func_name, func_parameters)` `pthread_join(tid, (void**) &t-output)`  第二个可以是NULL, 这个写法是手从`pthread_exit()`返回的值，t-output定义时定义的时指针，输出值用*t-output
-**Kernel** is a multi-thread program, it create kernel threads & OS threads 
+`pthread_create(&tid, NULL, func_name, func_parameters)` `pthread_join(tid, (void**) &t-output)`  第二个可以是NULL, 这个写法是从`pthread_exit()`返回的值，t-output定义时定义的时指针，输出值用*t-output
+**Kernel** is a multi-thread program, it create kernel threads & OS threads
+note: Each core simulates two (virtual) cores (Virtual cores alternating between them on a physical cycle-by-cycle basis)
 
 **==Scheduling==**
 **CPU - bound process**: user-time > sys-time
@@ -156,15 +192,82 @@ For <font color=green>Multi-threading</font>, they share the same code, same add
 
 Evaluation: 1.Number of Context Switches 2. Turnaround Time (`Termination Time` - `Arrival Time`) 3. Waiting Time
 <font color = blue>**Algorithms** </font>
-**1. **<font color=green>Non-preemptive SJF</font>: Arrive 的任务中选最快的, 但存在长期饥饿问题, 一个任务很早就准备好了, 但是后面新来的任务一直比它短(SJF无解)
-**2. **<font color=green>Preemptive SJF</font>: 每当出现新任务的时候，如果这个时间小于当前任务的剩余时间就切换. waiting time和 turnaround time 降低, context switches增多
-**3. **<font color=green>Round-Robin (RR)</font>是preemptive的, 所有ready的都在queue中, 每个任务都有一个time quantum, 用完了没结束也换, 并且放到队尾. 解决长期饥饿但别的不占优
-<font color=red>**2. **Priority Scheduling:</font> 每个task都有priority, 高priority的先执行*
+**1. **<font color=green>Non-preemptive SJF</font>: Arrive 的任务中选最快完成的, 但存在长期饥饿问题, 一个任务很早就ready, 但是后面新来的任务一直比它短(SJF无解)
+**2. **<font color=green>Preemptive SJF</font>: 每当出现新任务的时候，如果这个任务的时间小于当前任务的剩余时间就切换. waiting time和 turnaround time 降低, context switches增多
+**3. **<font color=green>Round-Robin (RR)</font>是preemptive的, 所有ready的都在queue中, 每个任务都有一个time quantum, 用完了没结束也换, 并且放到队尾. 解决长期饥饿，the responsiveness of the process is great但别的不占优
+<font color=red>**2. **Priority Scheduling:</font> 每个task都有priority, 高priority的先执行*(high priority—usually short-lived,but important)
 Priority分为两种**static priority**和**dynamic priority**, static的就是fixed的, dynamic在每个新任务到来时会变化
 <font color=green>Multi-Level Queue Scheduling</font>: Each queue can use a different algorithm. Priorities can be adjusted dynamically.
 <font color=red>Thread Scheduling</font>: Linux >= 2.6之后我们就只关心threads, the scheduler determines which threads get CPU time.
 ![image-20250503010332558](.\Images\image-20250503010332558.png)
 
+==**Synchronization**==
+
+concurrent access may yield the horrible ***data race***: may happen whenever  “shared object” + “multiple updates” + “concurrently”
+Solution: **Mutual exclusion(互斥)**: Not to access the “shared object” at the same time
+A **critical section** is the code segment that accesses shared objects. (Note that one critical section can access more than one shared objects.)
+two solutions: ***Locking***(=Mutual Exclusion) and ***Lock-free***(check if the final result)
+**lock-based solution**: **Mutual Exclusion** and **Bounded Waiting**
+**Disabling interrupt** when the process is inside the critical section. [When a process is in its critical section, no context switch]
+is usable for kernel level for old CPUs but now for Multi-core complication – It is possible that another core modifying the shared object in the memory. Modern multi-core CPU bundles with atomic instructions to make sure one core’s modification is atomic
+<font color=green>**Spin-based Lock(自旋锁)**</font>
+for process 0， 当turn != 0时waiting，否则进入CS，结束后转换turn=1。
+Busy waiting wastes CPU resources ；But very OK for short critical section；But this simple implementation imposes a “strict alternation” order （Sometimes you give me my turn but I’m not ready to enter CS yet then you have to wait long）
+当进程1已经完成cs的部分，正在进行剩余部分时，进程0无法进入cs
+**Peterson’s solution** to implement a spin-lock（one more extra shared var: ***interested***）
+在lock函数，for process a，设定interested[a] = TRUE, turn = process（`turn`变量的含义是：<font color=green>如果两个进程同时想进入临界区，谁应该让步</font>); 当 turn == process a && interested[other] == TRUE 时waiting。在unlock中，for process a，设定interested[a] = FALSE。
+
+= Busy waiting + shared variable turn for mutual exclusion + shared variable interest to resolve strict alternation
+However, suffer from **priority inversion problem**: 低优先级持有锁，高优先级被阻塞，higher priority takes CPU for busy waiting，导致性能下降
+cannot work for >2 processes 但是可以推广
+<font color=green>**Sleep-based lock: Semaphore(信号量)**</font>
+**Semaphore** is an extra shared struct : Include 
+1.an integer that counts the # of resources available (Can do more than solving mutual exclusion) and   2. a wait-list
+
+<div style="display: flex; width: 100%;"> <div style="flex: 1; padding-right: 10px;"> <img src="./Images/image-20250504223050153.png" width="100%" alt="image-20250504223050153"> </div> <div style="flex: 1; padding-left: 10px;"> 
+<pre><code>void sem-wait(semaphore *s){
+  disable_interrupt();
+  *s = *s - 1; //s.v--
+  if ( *s < 0 ) {
+    enable_interrupt(); //允许其他进程的响应和调度
+    sleep(s); //add2waitlist
+    disable_interrupt();}
+  enable_interrupt();}
+void sem-post(semaphore *s){
+  disable_interrupt();
+  *s = *s + 1; //s.v++
+  if ( *s <= 0 )
+    wakeup(s);
+  enable_interrupt();}
+<font color=green>**IPC problems(Inter-process communication)**</font>
+Producer Consumer Problem (The Bounded-Buffer Problem): [Single-Object Synchronization] 
+producer 会产生 item 存放到 buffer 中，而 consumer 可以将数据从 buffer 中取出 item  (e.g. pipe)
+Dining Philosopher Problem: [Multi-Object Synchronization] 五个哲学家，ta 们围坐在一张圆桌旁，每个哲学家面前都有一碗米饭，而 ta 们两两之间分别有一根筷子,可以思考或者拿筷子
+Reader Writer Problem:  reader 和 writer 的冲突；Writer 和 writer 的冲突；
+**Producer-consumer problem**
+#1 producer想要在缓冲区中放入一个新项目，但是缓冲区已满。producer应该等待。consumer应该通知producer它已经退出队列
+#2 consumer想要从缓冲区中消费一个项目，但是缓冲区是空。consumer应该等待。producer应该在进入队列后通知consumer
+ls → <enqueue> pipe <dequeue> → less
+note: When “ls” process goes back to the running state, it immediately writes a byte to the pipe so as to complete the execution of the write() system call.
+solving by semaphore
+`mutex`: 互斥信号量，初始值为1，用于保护缓冲区的互斥访问；`avail`: 表示缓冲区中的可用空间，初始值为缓冲区大小N；`fill`: 表示缓冲区中已填充的项目数，初始值为0;
+for producer:  item = produce_item(); sem_wait(&avail); sem_wait(&mutex); insert_item(item); sem_post(&mutex); sem_post(&fill);
+生产一个新项目; 等待缓冲区有空闲位置（如果缓冲区已满，则阻塞）;获取互斥锁，确保独占访问缓冲区;将项目插入缓冲区;释放互斥锁;增加已填充项目的计数，通知可能等待的消费者有新项目可用
+for consumer: sem_wait(&fill); sem_wait(&mutex); item = remove_item(); sem_post(&mutex); sem_post(&avail);
+等待缓冲区有项目可消费（如果缓冲区为空，则阻塞）;获取互斥锁，确保独占访问缓冲区;从缓冲区移除一个项目;释放互斥锁;增加可用空间的计数，通知可能等待的生产者有新空间可用
+Q1: Necessary to use both “avail” and “fill”? ANS: Yes. If consumer gets CPU first, it removes item from NULL
+Q2: Can we swap Lines 5 & 6 of the producer? ANS: No.This scenario is called a deadlock  [Consumer waits for Producer’s mutex at line 5 (waits for Producer (line 8) to unlock the mutex) ;Producer waits for Consumer’s avail at line 6 •(it waits for Consumer (line 8) to release avail)]      顺序应该是先申请资源再获得锁
+**Livelock**: 在活锁情况下，线程或进程并没有完全阻塞或停止 - 它们仍在执行操作并能从等待状态返回，但却无法推进完成实际工作。
+<font color=green>**Pthread’s sleeplock**</font>
+pthread_mutex_lock(&mutex);    //- If the mutex is not locked, lock the mutex. - If the mutex is locked, block the calling thread.
+pthread_mutex_unlock(&mutex);    //- If the mutex is locked, then unlock the mutex. If there are threads blocked because of this mutex, one of those threads will resume. - If the mutex is unlocked, do nothing.
+Thread Function:获取互斥锁;{检查共享变量`shared`是否小于最大值`MAXIMUM`;如果小于最大值，则增加共享变量的值;如果达到或超过最大值，则释放锁并退出循环;}释放互斥锁;随机休眠0-1秒
+信号量(Semaphore)
+**唤醒条件被硬编码在信号量内部**：唤醒条件是固定的 "s <= 0"，这意味着信号量内部的逻辑决定了何时唤醒等待的线程。唤醒逻辑是固定的，不能根据具体应用场景改变
+条件变量(Condition Variable)
+保留了原子性的等待/通知部分，但条件变量在被通知(posted)后会无条件地唤醒线程（重要区别：被唤醒 ≠ 条件现在成立），条件检查被移到外部，在代码中实现，并且可以支持任意谓词(predicate)，例如 x!=y
+If protecting shared resources (i.e., requires mutual exclusion) ➔ use semaphore or pthread_mutex 
+When doing something more (e.g., IPC problems like producer-consumer) ➔ use semaphore or Pthread’s condition variables
 **==File Management==**
 <font color=green>**Virtual File System(VFS)**</font>: An abstraction layer on top of concrete file systems
 不同的文件系统有不同的读取规则, 比如NTFS(windows), Ext4(Linux), Fat32(U盘), ISO9660(光碟), 这些在kernel space中, 用C lib中的读取是会调用对应的System Call, VFS则会根据文件启用不同的部分应对对应的文件系统
