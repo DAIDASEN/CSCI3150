@@ -154,25 +154,7 @@ receive SIGINT 第 1 位变 1, handle 后变回 0
 **When a function is called** - push a <font color=blue>Stack frame</font> (从stack底到顶, Parameters-return address, local vars)
 **When a function returns** - Pop the <font color=blue>Pop the stack frame</font>. Set Stackptr = *frameptr; *frameptr stores the previous stack ptr.
 The compiler hardcodes this mechanism into your program, is not done by the kernel
-**Recursions avoid stack overflow**: Minimizing the number of function arguments, local vars, calls. Use global vars, malloc instead, trail recursion
-
-<div style="display: flex; width: 100%;"> <div style="flex: 1; padding-right: 10px;"> <img src="./Images/761c7aa79678e6a32deeb59a15c5a0f.png" width="100%" alt="image-20250502011356544"> </div> <div style="flex: 1; padding-left: 10px;"> 
-<pre><code>int fun2(int x, int y) { 
-	int c = 10; 
-	return (x + y + c); 
-}
-int fun1(int u, int v) {
-	return fun2(v, u);
-}
-int main(void) {
-	int a = 1, b = 2;
-	b = fun1(a, b);
-	return 0;
-}
-
-<font color=red>Heap</font> （heap比stack大的多）
-
-每次malloc都会创造一个空间, malloc后发生什么1. 有一个结构存当前数组大小和link list ptr 2. 紧接着才是数组, 指针指向这里 由于存在之前的结构，两个相邻数组指针相减大于数组大小
+**Recursions avoid stack overflow**: Minimizing the number of function arguments, local vars, calls. Use global vars, malloc instead, trail recursion![image-20250505185000809](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250505185000809.png)<font color=red>Heap</font> （heap比stack大的多）每次malloc都会创造一个空间, malloc后发生什么1. 有一个结构存当前数组大小和link list ptr 2. 紧接着才是数组, 指针指向这里 由于存在之前的结构，两个相邻数组指针相减大于数组大小
 free: 最后就直接shrink, 中间的会存一个专门的free的link list, 头是head, 尾是Null
 Segmentation fault: 写入read-only段或读、写unallocated段报错（试图访问无权访问的内存）
 
@@ -223,22 +205,7 @@ cannot work for >2 processes 但是可以推广
 <font color=green>**Sleep-based lock: Semaphore(信号量)**</font>
 **Semaphore** is an extra shared struct : Include 
 1.an integer that counts the # of resources available (Can do more than solving mutual exclusion) and   2. a wait-list
-
-<div style="display: flex; width: 100%;"> <div style="flex: 1; padding-right: 10px;"> <img src="./Images/image-20250504223050153.png" width="100%" alt="image-20250504223050153"> </div> <div style="flex: 1; padding-left: 10px;"> 
-<pre><code>void sem-wait(semaphore *s){
-  disable_interrupt();
-  *s = *s - 1; //s.v--
-  if ( *s < 0 ) {
-    enable_interrupt(); //允许其他进程的响应和调度
-    sleep(s); //add2waitlist
-    disable_interrupt();}
-  enable_interrupt();}
-void sem-post(semaphore *s){
-  disable_interrupt();
-  *s = *s + 1; //s.v++
-  if ( *s <= 0 )
-    wakeup(s);
-  enable_interrupt();}
+![image-20250505184824597](.\Images\image-20250505184824597.png)
 <font color=green>**IPC problems(Inter-process communication)**</font>
 Producer Consumer Problem (The Bounded-Buffer Problem): [Single-Object Synchronization] 
 producer 会产生 item 存放到 buffer 中，而 consumer 可以将数据从 buffer 中取出 item  (e.g. pipe)
@@ -283,7 +250,7 @@ buf存的是缓冲区地址, size是大小, 如果buf为NULL意味着不用缓�
 `stdin` and `stdout` are line-buffered by default. `stderr` is un-buffered by default. 
 **`EOF`**: What is? 不存在于system call, 是定义在stdio.h中的,fread()会记住是否到达末尾, 到达了就返回-1(EOF), 如果没到reads data from the buffer or system calls.
 <font color=red>Linux: Everything is file</font> e.g. : Regular File, Directory, Block special file, Character special file(mouse)
-<font color=green>A "File"</font> contains **attributes** and **data**
+<font color=green>A "File"</font> contains **attributes** and **data**
 ![image-20250503020301702](.\Images\image-20250503020301702.png)
 <font color=red>stat</font>指令能看attributes, 对应的system call有`stat()`, `fstat()`, `lstat()`
 <font color=green>A directory</font> is a file consisting of **directory entries**(`dirent`), `dirent`is a struct
@@ -298,7 +265,7 @@ S1: Copy data from user-space buffer to kernel buffer.
 S2: 根据data length, (1) change in file size, if any, and (2) change in the file seek.
 S3: The call returns.
 S4: The buffered data will be flushed to the disk from time to time.
-<font color=red>The kernel buffer cache implies: </font>
+<font color=red>The kernel buffer cache implies: </font>
 **1. **Improving reading & writing  performance
 **2.**Why not to press reset button: Sudden reset loses cached data not yet written to disk, potentially corrupting file systems.
 **3. **Why to "eject" USB drives: Ejecting ensures all cached data is written to the device, preventing data loss or corruption.
