@@ -335,6 +335,15 @@ cannot work for >2 processes 但是可以推广
 **Semaphore** is an extra shared struct : Include 
 1.an integer that counts the # of resources available (Can do more than solving mutual exclusion) and   2. a wait-list
 ![image-20250505184824597](.\Images\image-20250505184824597.png)
+
+`sem_t *sem_open(const char *name, oflag, mode_t mode, unsigned int value);` oflag打开标志`O_CREAT`创建  `O_EXCL`独占 `mode`权限模式(0666) `value`初始值 
+`int sem_wait(sem_t *sem);` 信号量>0, -1就返回, =0阻塞直到可用 `int sem_post(sem_t *sem);`信号量+1, 如有等待则唤醒 `sem_close(sem);`关闭当前进程对信号量的引用`int sem_unlink(const char *name);` 标记信号被删除, 所有进程都关闭他就实际删除
+<font color=blue>**Unnamed Semaphore**</font> used only by threads in the **same process** or threads in different processes but have **mapped the same memory** into their address spaces
+`int sem_init(sem_t *sem, int pshared, unsigned int value);` `pshared` = 0表示当前process使用, 非0则多进程共享 `int sem_destroy(sem_t *sem);`
+<font color=blue>**Shared Memory**</font> 共享内存的文件应该编译时用 `-lrt` 链接
+`int shm_open(const char *name, int oflag, mode_t mode);` 创建或打开共享内存对像<font color=green>`oflag`</font>为(`O_RDONLY`只读`O_RDWR` 读写 `O_CREAT`如不存在则创建, | 连接) , 有问题返回-1 <font color=green>**`mode`**</font>权限模式（当O_CREAT标志使用时），如0644
+`void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);` 将文件或设备映射到内存中 <font color=green>`addr`</font>映射起始地址, NULL/0系统自己选择 <font color=green>`length`</font>映射自己长度 <font color=green>`prot`</font>内存保护标志(`PROT_READ` 可读 `PROT_WRITE` 可写 `PROT_EXEC` 可执行`PROT_NONE` 不可访问) <font color=green>`flags`</font>(MAP_SHARED 共享映射，修改对其他进程可见; MAP_PRIVATE 私有映射，修改不会写回; MAP_ANONYMOUS 不基于文件的映射$\rarr$与fd=-1一起用) <font color=green>`fd`</font>文件表描述符(`shm_open`返回那个) `offset`文件偏移量通常为0
+`int munmap(void *addr, size_t length);` 取消映射 `int shm_unlink(const char *name);` 删除共享内存对象
 <font color=green>**IPC problems(Inter-process communication)**</font>
 Producer Consumer Problem (The Bounded-Buffer Problem): [Single-Object Synchronization] 
 producer 会产生 item 存放到 buffer 中，而 consumer 可以将数据从 buffer 中取出 item  (e.g. pipe)
@@ -367,7 +376,11 @@ Spinlock using **TAS[test_and_set()] **(by Maurice Herlihy): 当锁未被持有�
 **初始化**：锁初始化为0(未锁定状态)：`Initialize _Atomic lock = 0`
 **Lock-free**:线程不阻塞等待资源，而是直接尝试操作，如果发现冲突则重试。
 **读取**：线程读取共享数据的当前状态;**计算**：基于读取的状态计算新状态;**更新**：使用原子操作（如CAS)尝试更新; 验证：检查更新是否成功: 1成功：操作完成; 2失败：重新开始整个过程
+<font color=blue>**Atomic Instruction**</font>:  `<stdatomic.h>`  在定义变量前+`_Atomic`使其为原子化的
+`_Bool atmoic_compare_exchange_weak(volatile A *object, C *expected, C desired);` 比较object指向的值是不是等于expected, 如果是用desired替换object的值, 不是就用object替换expected, A为atomic type, C为non-atomic counterpart. <font color = green>volatile</font> 类似const是type的一个property , 表示访问之前可能会发生变化, 即使没有比修修改. <font color=green>函数返回值是比较的结果</font>
+`atomic_load(x)`给x做一个本地的保存
 lock-based: lock-holder sleeping; lock-holder diess; deadlock **VS** lock-free: ABA problem; difficult to code **VS** wait-free: guarantee progress for every thread; operation-X() must finish in a finite number of steps; hard to achieve
+<font color=green>**ABA problem** </font>**Solution:** adds a **counter alongside** each pointer(之前stack的例子中lfstack_t加一个tag, 每次+1). This ensures that when comparing values, both the pointer and its associated counter must match, effectively detecting any intermediate changes.
 memory consistency: Strong x86 (i.e., Intel and AMD)➔ cache coherence ➔core 2 reads “new”; Weak ARM (Advanced RISC Machine) ➔ almost all mobile devices ➔ no cache coherence ➔ core 2 reads “old”
 **Dining philosopher**: requirements:mutual exclusion; deadlock-free 先释放互斥锁，再等待条件
 ![image-20250506123723894](.\Images\image-20250506123723894.png)
