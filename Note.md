@@ -100,8 +100,7 @@ Can a process execute more than one program? Yes, keeps on calling the exec syst
 `init()` (<font color="purple">fork() & exec()</font>) -> SSH Server <font color="purple">(f&e)</font> -> shell <font color="purple">(f&e)</font> -> `top`
 **<font color="red">Orphan process:</font>** if parent terminate but child has started => hierarchy changes from tree to forest, and no one would know the termination of the orphan
 => <font color="blue">解决方法 (Solution):</font>
-Linux: re-parent to <font color="red"><u>init</u></font> => <font color="black">(在 exit() 过程中完成)</font> Windows: <font color="black">保持森林 (Maintain forest)</font>
-
+Linux: re-parent to <font color="red"><u>init</u></font> => <font color="black">(在 exit() 过程中完成)</font> Windows: 保持森林 (Maintain forest)
 可中断阻塞 (Interruptible)：进程等待某个条件，但可以被信号打断；对系统影响较小，进程可被管理和控制
 可以通过发送信号（如SIGINT、SIGTERM）使进程从等待状态返回；允许用户或系统管理员在必要时终止进程
 常见情况：1.read()从终端或网络读取数据 ；2.`sleep()`、`wait()`函数调用；3. 等待信号量或互斥锁
@@ -110,7 +109,6 @@ e.g. Ctrl+C中断正在等待用户输入的程序
 即使发送SIGKILL信号也无法终止进程；通常涉及关键的系统级操作，中断可能导致数据不一致；必须等待操作完成或系统条件满足才能继续
 常见情况：1.直接磁盘I/O操作（不通过缓冲）；2.某些系统调用（如`sync`）；3.NFS服务器无响应；4.设备驱动程序中的关键操作
 e.g.系统正在将数据写入磁盘，此时即使尝试强制关机，也必须等待写入完成
-
 **<font color="red">Context switching (上下文切换)</font>**: is switching procedure from one process to another.
 **<font color="blue">when? </font>**
 **1. **Process goes to blocking/waiting state {`wait()`, `sleep()`}. 
@@ -150,7 +148,7 @@ receive SIGINT 第 1 位变 1, handle 后变回 0
 ==**Memory Management**== $$KB (2^{10}) MB (2^{20}) GB (2^{30}) TB (2^{40}) PB (2^{50}) EB (2^{60})$$
 32-bit system maximum amount memory in a process is $$2^{32}$$ bytes = 4GB     1MB = 1024x1024 byte
 
-![image-20250502011356544](.\Images\image-20250502011356544.png)
+<img src=".\Images\image-20250502011356544.png" alt="image-20250502011356544" style="zoom:80%;" />
 <font color=red>Stack in-depth</font>
 **When a function is called** - push a <font color=blue>Stack frame</font> (从stack底到顶, Parameters-return address, local vars)
 **When a function returns** - Pop the <font color=blue>Pop the stack frame</font>. Set Stackptr = *frameptr; *frameptr stores the previous stack ptr.
@@ -185,7 +183,6 @@ Priority分为两种**static priority**和**dynamic priority**, static的就是f
 ![image-20250503010332558](.\Images\image-20250503010332558.png)
 
 ==**Synchronization**==
-
 concurrent access may yield the horrible ***data race***: may happen whenever  “shared object” + “multiple updates” + “concurrently”
 Solution: **Mutual exclusion(互斥)**: Not to access the “shared object” at the same time
 A **critical section** is the code segment that accesses shared objects. (Note that one critical section can access more than one shared objects.)
@@ -199,7 +196,6 @@ Busy waiting wastes CPU resources ；But very OK for short critical section；Bu
 当进程1已经完成cs的部分，正在进行剩余部分时，进程0无法进入cs
 **Peterson’s solution** to implement a spin-lock（one more extra shared var: ***interested***）
 在lock函数，for process a，设定interested[a] = TRUE, turn = process（`turn`变量的含义是：<font color=green>如果两个进程同时想进入临界区，谁应该让步</font>); 当 turn == process a && interested[other] == TRUE 时waiting。在unlock中，for process a，设定interested[a] = FALSE。
-
 = Busy waiting + shared variable turn for mutual exclusion + shared variable interest to resolve strict alternation
 However, suffer from **priority inversion problem**: 低优先级持有锁，高优先级被阻塞，higher priority takes CPU for busy waiting，导致性能下降
 cannot work for >2 processes 但是可以推广
@@ -312,8 +308,6 @@ Partition分为Primary和extended, extended只有一个, extended可以划分成
 **挂载（Mounting）** 是操作系统将一个存储设备（如硬盘分区、CD-ROM、USB驱动器等）或文件系统与目录树中的特定访问点（称为"挂载点")关联起来的过程。这使得存储设备上的文件和目录可以通过这个挂载点被访问，就像它们是本地文件系统的一部分一样。
 挂载操作不会删除挂载点原有内容，只是暂时使其不可见：原挂载点内容在存储介质上保持不变；卸载后，原内容会重新可见；这种机制允许灵活地组织和访问不同存储设备上的数据
 
-# Mounting 没看
-
 **==File System==**: A way that **lays out** how data is organized on a storage device
 <font color=blue>Layout method</font>
 <font color=blue>**1. **Contiguous allocation</font>
@@ -322,7 +316,7 @@ Partition分为Primary和extended, extended只有一个, extended可以划分成
 For each block, leave 4 bytes as the “pointer”, 最后一个写-1(NULL), Root Directory 写的是, file name, 1st Block Address, Size.
 解决External fragmentation和File Growth problem
 存在的问题 **1. **Internal Fragmentation(a file is not always a multiple of block size) $\Rarr$ Last Block 可能没 fully filled.  **2. **Poor random access performance, 如果我要访问File的19th block中的内容, 我需要从头一个一个读，直到从第18个找到19个
-<font color=green>Application: FAT (File Allocation Table)</font> 用在: CF cards, SD cards, USB drives
+<font color=green>==FAT (File Allocation Table)==</font> 用在: CF cards, SD cards, USB drives
 在之前的Linked  allocation方法中, 每个block前4byte存后面的位置, FAT则是集中起来存到一个table里, 记录了每个Block的下一个Block的address. 保存(部分)FAT在kernel cache中。
 Start from floppy disk and DOS, Dos中每个block被称为cluster, FAT xx表示xx-bit cluster address也就是说总共$2^{xx}$个blocks, FAT32只有28, MS reserves 4bits
 File System Size计算方法: Cluster Size$\times$Cluster address
