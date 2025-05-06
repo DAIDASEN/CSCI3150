@@ -384,4 +384,6 @@ lock-based: lock-holder sleeping; lock-holder diess; deadlock **VS** lock-free: 
 memory consistency: Strong x86 (i.e., Intel and AMD)➔ cache coherence ➔core 2 reads “new”; Weak ARM (Advanced RISC Machine) ➔ almost all mobile devices ➔ no cache coherence ➔ core 2 reads “old”
 **Dining philosopher**: requirements:mutual exclusion; deadlock-free 先释放互斥锁，再等待条件
 ![image-20250506123723894](.\Images\image-20250506123723894.png)
-![image-20250506140040359](.\Images\image-20250506140040359.png)
+![image-20250506150427853](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250506150427853.png)
+
+![image-20250506150622830](C:\Users\31670\AppData\Roaming\Typora\typora-user-images\image-20250506150622830.png)
